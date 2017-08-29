@@ -1,0 +1,23 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Teletalker",
+	"Description": "Telegram API plugin",
+	"Category": "Other",
+	"CreatedBy": "Yaroslav",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "Teletalker",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
