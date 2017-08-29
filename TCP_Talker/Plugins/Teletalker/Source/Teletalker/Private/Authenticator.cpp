@@ -2,7 +2,6 @@
 #include "MTProtoPlainSender.h"
 #include "BinaryReader.h"
 #include "BinaryWriter.h"
-//#include <windows.h>
 #include <bitset>
 #include "Crypto.h"
 
@@ -129,52 +128,49 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 
 	//Send scheme https://core.telegram.org/mtproto/samples-auth_key
 
+	/*Request for (p,q) Authorization*/
 	BinaryWriter PQWriter;
 	BinaryWriter HashWriter;
 	PQWriter.WriteInt(0x60469778);
 	unsigned char Buff[16];
-	auto Random = RAND_bytes(Buff, 16);
+	int32 Random = RAND_bytes(Buff, 16);
 	PQWriter.Write(Buff, 16);
 	HashWriter.Write(Buff, 16);
 
-	auto bytes = PQWriter.GetBytes();
+	TArray<unsigned char> bytes = PQWriter.GetBytes();
 	int32 bytessent = Sender.Send(bytes.GetData(), PQWriter.GetWrittenBytesCount());
-	//int32 bytessent = Transport.Send(bytes, Writer.GetWrittenBytesCount());
-	if (bytessent)
-		UE_LOG(LogTemp, Log, TEXT("Bytes written %d"), bytessent)
-	;
+	
+	/*Response for (p,q) Authorization*/
 	BinaryReader PQReader((unsigned char *)Sender.Receive(84).GetData(), 64);
 	int32 PQConst = PQReader.ReadInt();
 	if (PQConst != 0x05162463)
-		UE_LOG(LogTemp, Error, TEXT("Invalid PQ Constructor"))
-	;
-	auto Nonce = PQReader.Read(16);
+		UE_LOG(LogTemp, Error, TEXT("Invalid PQ Constructor"));
+
+	TArray<unsigned char> Nonce = PQReader.Read(16);
 
 	if (Nonce != HashWriter.GetBytes())
 		UE_LOG(LogTemp, Error, TEXT("Invalid nonce"));
 
-	auto ServerNonce = PQReader.Read(16);
-	auto PQBytes = PQReader.TGReadBytes();
+	TArray<unsigned char> ServerNonce = PQReader.Read(16);
+	TArray<unsigned char> PQBytes = PQReader.TGReadBytes();
 	int64 PQ = GetInt64Big(PQBytes.GetData());
 	int32 VectConst = PQReader.ReadInt();
 	if (VectConst != 0x1cb5c415)
-		UE_LOG(LogTemp, Error, TEXT("Invalid vector constructor"))
-	;
+		UE_LOG(LogTemp, Error, TEXT("Invalid vector constructor"));
 	int32 FingerPrintsCount = PQReader.ReadInt();
-	auto Fingerprint = PQReader.Read(8);
-	int64 Finger = GetInt64Big((unsigned char *)Fingerprint.GetData());
+	TArray<unsigned char> Fingerprint = PQReader.Read(8);
 
 	/*Generate encrypted data*/
 	BinaryWriter DataWriter;
 	DataWriter.WriteInt(0x83c95aec);
-	DataWriter.TGWriteBytes(PQBytes.GetData(), PQBytes.Num()); //HERE
+	DataWriter.TGWriteBytes(PQBytes.GetData(), PQBytes.Num());
 
 	int64 Factor;
 	int64 Factor2;
 	Crypto::Factorize(&PQ, &Factor, &Factor2);
 
- 	auto Min = FMath::Min(Factor, Factor2);
- 	auto Max = FMath::Max(Factor, Factor2);
+ 	int32 Min = FMath::Min(Factor, Factor2);
+ 	int32 Max = FMath::Max(Factor, Factor2);
 	DataWriter.TGWriteBytes((unsigned char *)&Min, 4);
 	DataWriter.TGWriteBytes((unsigned char *)&Max, 4);
 	DataWriter.Write(Nonce.GetData(), Nonce.Num());
@@ -184,11 +180,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	RAND_bytes(NewNonce, 32);
 	DataWriter.Write(NewNonce, 32);
 
-	0x216BE86C022BB4C3;
-	if (Finger != 0xc3b42b026ce86b21)
-		UE_LOG(LogTemp, Error, TEXT("Fingerprint from server is invalid"));
-
-
+	/*Prepare data for RSA encrypt*/
 	unsigned char SHAResult[20];
 	SHA1((unsigned char *)DataWriter.GetBytes().GetData(), DataWriter.GetWrittenBytesCount(), SHAResult);
 	BinaryWriter EncDataWriter;
@@ -198,9 +190,6 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	int32 TrashSize = 255 - EncDataWriter.GetWrittenBytesCount();
 	RAND_bytes(Trash, TrashSize);
 	EncDataWriter.Write(Trash, TrashSize);
-
-
-	uint8 CipherData[256];
 
 	/*Python rsa encrypt test area*/
 // 	FIPv4Address TeServer(127, 0, 0, 1);
@@ -222,67 +211,29 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 // 	int32 CipherRead;
 // 	Sock->Recv(CipherData, TestReceive, CipherRead);
 	/*End test area*/
-	
-		static const char *(keys[]) = { "\
------BEGIN RSA PUBLIC KEY-----\n\
-MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6\n\
-lyDONS789sVoD/xCS9Y0hkkC3gtL1tSfTlgCMOOul9lcixlEKzwKENj1Yz/s7daS\n\
-an9tqw3bfUV/nqgbhGX81v/+7RFAEd+RwFnK7a+XYl9sluzHRyVVaTTveB2GazTw\n\
-Efzk2DWgkBluml8OREmvfraX3bkHZJTKX4EQSjBbbdJ2ZXIsRrYOXfaA+xayEGB+\n\
-8hdlLmAjbCVfaigxX0CDqWeR1yFL9kwd9P0NsZRPsmoqVwMbMu7mStFai6aIhc3n\n\
-Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
------END RSA PUBLIC KEY-----" };
 
-	auto shhs = strlen(keys[0]);
-	auto keyBytes = gsl::as_bytes(gsl::make_span(keys[0], keys[0] + strlen(keys[0])));
-
+	/*Since RSA_public_encrypt failed to produce necessary data, with use bare rsa algorithm */
 	RSA* rsaPubKey = RSA_new();
-	//BIO* bio = BIO_new_mem_buf(const_cast<gsl::byte*>(keyBytes.data()), keyBytes.size());
-	bool IsEncryptValid = true;
 	BIGNUM * modulus = BN_new();
 	BIGNUM * power = BN_new();
 	BIGNUM * message = BN_new();
 	BIGNUM * encrypted = BN_new();
-	char * keysd = "C150023E2F70DB7985DED064759CFECF0AF328E69A41DAF4D6F01B538135A6F91F8F8B2A0EC9BA9720CE352EFCF6C5680FFC424BD634864902DE0B4BD6D49F4E580230E3AE97D95C8B19442B3C0A10D8F5633FECEDD6926A7F6DAB0DDB7D457F9EA81B8465FCD6FFFEED114011DF91C059CAEDAF97625F6C96ECC74725556934EF781D866B34F011FCE4D835A090196E9A5F0E4449AF7EB697DDB9076494CA5F81104A305B6DD27665722C46B60E5DF680FB16B210607EF217652E60236C255F6A28315F4083A96791D7214BF64C1DF4FD0DB1944FB26A2A57031B32EEE64AD15A8BA68885CDE74A5BFC920F6ABF59BA5C75506373E7130F9042DA922179251F";
-	char * esd = "10001";
-	auto BNCTX = BN_CTX_new();
+	/*Modulus of Telegram public key in hex form*/
+	char * TelegramPublicModulus = "C150023E2F70DB7985DED064759CFECF0AF328E69A41DAF4D6F01B538135A6F91F8F8B2A0EC9BA9720CE352EFCF6C5680FFC424BD634864902DE0B4BD6D49F4E580230E3AE97D95C8B19442B3C0A10D8F5633FECEDD6926A7F6DAB0DDB7D457F9EA81B8465FCD6FFFEED114011DF91C059CAEDAF97625F6C96ECC74725556934EF781D866B34F011FCE4D835A090196E9A5F0E4449AF7EB697DDB9076494CA5F81104A305B6DD27665722C46B60E5DF680FB16B210607EF217652E60236C255F6A28315F4083A96791D7214BF64C1DF4FD0DB1944FB26A2A57031B32EEE64AD15A8BA68885CDE74A5BFC920F6ABF59BA5C75506373E7130F9042DA922179251F";
+	char * PublicExponent = "10001";
+	BN_CTX * BNCTX = BN_CTX_new();
 
 	BN_bin2bn(EncDataWriter.GetBytes().GetData(), 255, message);
-	BN_hex2bn(&power, esd);
-	BN_hex2bn(&modulus, keysd);
+	BN_hex2bn(&power, PublicExponent);
+	BN_hex2bn(&modulus, TelegramPublicModulus);
 	rsaPubKey->n = modulus;
 	rsaPubKey->e = power;
-	int rytr = BN_mod_exp(encrypted, message, power, modulus, BNCTX);
-	unsigned char buffer[32];
-	int written = RAND_bytes(buffer, sizeof(buffer));
-	auto testtest = RSA_size(rsaPubKey);
+	/*RSA is basically r=a^p % m, where a - our message, p - public exponent, m - public key, and r - resulting ecnrypted message*/
+	int32 IsRSAValid = BN_mod_exp(encrypted, message, power, modulus, BNCTX);
 
-
-	unsigned char CipherText[256];
-	unsigned char CipherText2[256];
-	//RAND_seed(buffer, written);
-	//CipherData = new uint8(RSA_size(rsaPubKey));
-	//rsaPubKey = (PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<gsl::byte*>(keyBytes.data()), keyBytes.size()), NULL, NULL, NULL));
-	if (rsaPubKey != nullptr)
-		//rsaPubKey->n = yes;
-		if ((RSA_public_encrypt(256, /*CipherData*/ EncDataWriter.GetBytes().GetData(), CipherText, rsaPubKey, RSA_NO_PADDING)) == -1)
-		{
-			IsEncryptValid = false;
-			UE_LOG(LogTemp, Error, TEXT("Error encrypting message : \n"));
-		}
-	if (rsaPubKey != nullptr)
-		//rsaPubKey->n = yes;
-		if ((RSA_public_encrypt(256, /*CipherData*/ EncDataWriter.GetBigBytes().GetData(), CipherText2, rsaPubKey, RSA_NO_PADDING)) == -1)
-		{
-			IsEncryptValid = false;
-			UE_LOG(LogTemp, Error, TEXT("Error encrypting message : \n"));
-		}
-
-	CipherData;
-	CipherText;
-	CipherText2;
 	//Request to start Diffie-Hellman key exchange
 	BinaryWriter DHWriter;
+	uint8 CipherData[256];
 
 	DHWriter.WriteInt(0xd712e4be);
  	DHWriter.Write(Nonce.GetData(), Nonce.Num());
@@ -300,9 +251,23 @@ Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
 
 	int32 bytessentdh = Sender.Send(DHWriter.GetBytes().GetData(), DHWriter.GetWrittenBytesCount());
 
-	//if (IsEncryptValid)
-		BinaryReader DHReader(Sender.Receive(664).GetData(), 664);
+	BinaryReader DHReader(Sender.Receive(664).GetData(), 632);
 
+	int32 ServerDHParams = DHReader.ReadInt();
+	if(ServerDHParams != 0xd0e8075c)
+		UE_LOG(LogTemp, Error, TEXT("DH params failed"));
+	if(Nonce != DHReader.Read(16))
+		UE_LOG(LogTemp, Error, TEXT("Nonce failed"));
+	if(ServerNonce != DHReader.Read(16))
+		UE_LOG(LogTemp, Error, TEXT("ServeNonce failed"));
+
+	auto EncryptedAnswer = DHReader.TGReadBytes();
 	return TArray<unsigned char>();
+}
+
+void Authenticator::GenerateKeyDataFromNonce(TArray<unsigned char> Nonce, TArray<unsigned char> ServerNonce, TArray<unsigned char> Key, TArray<unsigned char> IV)
+{
+	//unsigned char Hash1[20];
+	//SHA1((unsigned char *)DataWriter.GetBytes().GetData(), DataWriter.GetWrittenBytesCount(), Hash1);
 }
 

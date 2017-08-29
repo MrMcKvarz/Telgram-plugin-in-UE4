@@ -79,12 +79,12 @@ TArray<unsigned char> TCPTransport::Receive()
 // 	Client->Read(4);
 // 	Client->Read(8);
 	auto Packet = Client->Read(PacketLength - 12);
-	if (SendCounter == 1)
-	{
- 		int32 resp = BinaryReader((unsigned char *)Packet.GetData(), 4).ReadInt();
-		auto wtf = 1 - 1;
-
-	}
+// 	if (SendCounter == 1)
+// 	{
+//  		int32 resp = BinaryReader((unsigned char *)Packet.GetData(), 4).ReadInt();
+// 		auto wtf = 1 - 1;
+// 
+// 	}
 	auto HashBytes = Client->Read(4);
 	int32 Hash = BinaryReader(HashBytes.GetData(), 4).ReadInt();
 // 
