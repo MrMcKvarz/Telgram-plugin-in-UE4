@@ -54,40 +54,13 @@ TArray<unsigned char> TCPTransport::Receive()
  	auto SendCounterBytes = Client->Read(4);
 	int32 SendCounter = BinaryReader(SendCounterBytes.GetData(), 4).ReadInt();
 
-	//debug reguion
-// 	auto AuthKeyBytes = Client->Read(8);
-// 	int64 AuthKey = BinaryReader(AuthKeyBytes.GetData(), 8).ReadLong();
-// 
-// 	auto MessageIDBytes = Client->Read(8);
-// 	int64 MessageID = BinaryReader(MessageIDBytes.GetData(), 8).ReadLong();
-// 
-// 	auto LengthBytes = Client->Read(4);
-// 	int32 Length = BinaryReader(LengthBytes.GetData(), 4).ReadInt();
-// 
-// 	auto PQConstructorBytes = Client->Read(4);
-// 	auto PQConstructor = BinaryReader(PQConstructorBytes.GetData(), 4).ReadInt();
-// 
-// 	Client->Read(16); //my nonce
-// 	Client->Read(16);//server nonce 
-// 
-// 	auto PQBytes = Client->Read(12);
-// 	auto PQ = BinaryReader(PQBytes.GetData(), 12).TGReadBytes();
-// 
-// 	auto VectorBytes = Client->Read(4);
-// 	auto Vector = BinaryReader(VectorBytes.GetData(), 4).ReadInt();
-// 
-// 	Client->Read(4);
-// 	Client->Read(8);
+	if (SendCounter == 2)
+		auto stophere = 0;
 	auto Packet = Client->Read(PacketLength - 12);
-// 	if (SendCounter == 1)
-// 	{
-//  		int32 resp = BinaryReader((unsigned char *)Packet.GetData(), 4).ReadInt();
-// 		auto wtf = 1 - 1;
-// 
-// 	}
+
 	auto HashBytes = Client->Read(4);
 	int32 Hash = BinaryReader(HashBytes.GetData(), 4).ReadInt();
-// 
+ 
 	BinaryWriter Writer;
 	Writer.WriteInt(PacketLength);
 	Writer.WriteInt(SendCounter);

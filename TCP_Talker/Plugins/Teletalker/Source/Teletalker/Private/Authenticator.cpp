@@ -176,9 +176,14 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	DataWriter.Write(Nonce.GetData(), Nonce.Num());
 	DataWriter.Write(ServerNonce.GetData(), ServerNonce.Num());
 
-	unsigned char NewNonce[32];
-	RAND_bytes(NewNonce, 32);
-	DataWriter.Write(NewNonce, 32);
+
+	unsigned char RandBytes[32];
+	RAND_bytes(RandBytes, 32);
+	DataWriter.Write(RandBytes, 32);
+	TArray<unsigned char> NewNonce;
+	NewNonce.Reserve(32);
+	for (int i = 0; i < 32; i++)
+		NewNonce.Add(RandBytes[i]);
 
 	/*Prepare data for RSA encrypt*/
 	unsigned char SHAResult[20];
@@ -190,27 +195,6 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	int32 TrashSize = 255 - EncDataWriter.GetWrittenBytesCount();
 	RAND_bytes(Trash, TrashSize);
 	EncDataWriter.Write(Trash, TrashSize);
-
-	/*Python rsa encrypt test area*/
-// 	FIPv4Address TeServer(127, 0, 0, 1);
-// 	const int32 TePort = 27015;
-// 
-// 	FSocket *Sock = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateSocket(NAME_Stream, TEXT("PythonEncrypt"), false);
-// 
-// 	auto Address = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-// 	Address->SetIp(TeServer.Value);
-// 	Address->SetPort(TePort);
-// 
-// 	int32 TestReceive = 256;
-// 	uint8 CipherData[256];
-// 	Sock->Connect(*Address);
-// 	Sock->Send((uint8 *)EncDataWriter.GetBytes().GetData(), EncDataWriter.GetBytes().Num(), bytessent);
-// 	//Sock->Send((uint8 *)CipherText, 256, bytessent);
-// 	std::this_thread::sleep_for(std::chrono::milliseconds(10));
-// 
-// 	int32 CipherRead;
-// 	Sock->Recv(CipherData, TestReceive, CipherRead);
-	/*End test area*/
 
 	/*Since RSA_public_encrypt failed to produce necessary data, with use bare rsa algorithm */
 	RSA* rsaPubKey = RSA_new();
@@ -228,7 +212,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	BN_hex2bn(&modulus, TelegramPublicModulus);
 	rsaPubKey->n = modulus;
 	rsaPubKey->e = power;
-	/*RSA is basically r=a^p % m, where a - our message, p - public exponent, m - public key, and r - resulting ecnrypted message*/
+	/*RSA is basically r=a^p % m, where a - our message, p - public exponent, m - public key, and r - resulting encrypted message*/
 	int32 IsRSAValid = BN_mod_exp(encrypted, message, power, modulus, BNCTX);
 
 	//Request to start Diffie-Hellman key exchange
@@ -246,7 +230,6 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	DHWriter.Write(Fingerprint.GetData(), 8);
 
 	BN_bn2bin(encrypted, CipherData);
-	//DHWriter.TGWriteBytes(CipherText, 256);
 	DHWriter.TGWriteBytes(CipherData, 256);// TestReceive);
 
 	int32 bytessentdh = Sender.Send(DHWriter.GetBytes().GetData(), DHWriter.GetWrittenBytesCount());
@@ -261,13 +244,165 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	if(ServerNonce != DHReader.Read(16))
 		UE_LOG(LogTemp, Error, TEXT("ServeNonce failed"));
 
+	TArray<unsigned char> Key, IV;
+	unsigned char Answer[584];
+	GenerateKeyDataFromNonce(NewNonce, ServerNonce,/*out*/ Key, /*out*/ IV);
+
+	AES_KEY DecryptAESKey;
+	AES_set_decrypt_key(Key.GetData(), 256, &DecryptAESKey);
 	auto EncryptedAnswer = DHReader.TGReadBytes();
+
+	const size_t encslength = ((EncryptedAnswer.Num() + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+	AES_ige_encrypt(EncryptedAnswer.GetData(), Answer, encslength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
+
+	BinaryReader DHInnerDataReader(Answer, 584);
+	//BinaryReader DHInnerDataReader(RecvKey, 584);
+	DHInnerDataReader.Read(20); // hash sum
+	int32 DHInnerConstructor = DHInnerDataReader.ReadInt();
+	if(DHInnerConstructor != 0xb5890dba)
+ 		UE_LOG(LogTemp, Error, TEXT("We are fucked"));
+	if (Nonce != DHInnerDataReader.Read(16))
+		UE_LOG(LogTemp, Error, TEXT("Nonce failed"));
+	if (ServerNonce != DHInnerDataReader.Read(16))
+		UE_LOG(LogTemp, Error, TEXT("ServeNonce failed"));
+
+	int32 G = DHInnerDataReader.ReadInt();
+	auto DHPrime = DHInnerDataReader.TGReadBytes();
+	auto GA = DHInnerDataReader.TGReadBytes();
+	int32 ServerTime = DHInnerDataReader.ReadInt();
+
+	BIGNUM * b = BN_new();
+	unsigned char BHash[256];
+	RAND_bytes(BHash, 256);
+	BN_bin2bn(BHash, 256, b);
+
+	BIGNUM * dh_prime = BN_new();
+	BN_bin2bn(DHPrime.GetData(), DHPrime.Num(), dh_prime);
+
+	BIGNUM * ga = BN_new();
+	BN_bin2bn(GA.GetData(), GA.Num(), ga);
+
+	BIGNUM * g = BN_new();
+	BN_bin2bn((unsigned char *)(&G), 1, g);
+	BIGNUM * gb = BN_new();
+	BIGNUM * gab = BN_new();
+
+	BN_CTX * BNCTXGBDH = BN_CTX_new();
+	BN_CTX * BNCTXGABDH = BN_CTX_new();
+// 	gb = pow(g, b, dh_prime)
+// 	gab = pow(ga, b, dh_prime)
+
+	int32 IsGBDH = BN_mod_exp(gb, g, b, dh_prime, BNCTXGBDH);
+	int32 IsGABDH = BN_mod_exp(gab, ga, b, dh_prime, BNCTXGABDH);
+	unsigned char gbBytes[256];
+	if(BN_bn2bin(gb, gbBytes))
+		UE_LOG(LogTemp, Error, TEXT("Failed BIGNUM conversion"));
+	if(IsGBDH && IsGABDH)
+		UE_LOG(LogTemp, Error, TEXT("Computation Ok"));
+
+	/*Client DH inner data generation*/
+	BinaryWriter DHInnerDataWriter;
+	DHInnerDataWriter.WriteInt(0x6643b654);
+	DHInnerDataWriter.Write(Nonce.GetData(), Nonce.Num());
+	DHInnerDataWriter.Write(ServerNonce.GetData(), ServerNonce.Num());
+	DHInnerDataWriter.WriteLong(0); // TODO Retry id 
+	DHInnerDataWriter.TGWriteBytes(gbBytes, 256);
+
+	BinaryWriter DHInnerEncDataWriter;
+	unsigned char SHADHInner[20];
+	SHA1(DHInnerDataWriter.GetBytes().GetData(), DHInnerDataWriter.GetWrittenBytesCount(), SHADHInner);
+	DHInnerEncDataWriter.Write(SHADHInner, 20);
+	DHInnerEncDataWriter.Write(DHInnerDataWriter.GetBytes().GetData(), DHInnerDataWriter.GetWrittenBytesCount());
+// 	int32 DHEncDataPadding = 16 - (DHInnerEncDataWriter.GetWrittenBytesCount() % 16);
+// 	DHInnerEncDataWriter.Write(SHADHInner, DHEncDataPadding); // We using SHADHInner, but all we need just to write padding bytes
+
+	AES_KEY EncryptAESKey;
+	AES_set_encrypt_key(Key.GetData(), 256, &EncryptAESKey);
+
+	unsigned char DH_AESEncrypted[336];
+
+	const size_t InputLength = ((DHInnerEncDataWriter.GetWrittenBytesCount() + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+	AES_ige_encrypt(DHInnerEncDataWriter.GetBytes().GetData(), DH_AESEncrypted, InputLength/*DHInnerEncDataWriter.GetWrittenBytesCount()*/, &EncryptAESKey, IV.GetData(), AES_ENCRYPT);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/*Python rsa encrypt test area*/
+	FIPv4Address TeServer(127, 0, 0, 1);
+	const int32 TePort = 27015;
+
+	FSocket *Sock = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateSocket(NAME_Stream, TEXT("PythonEncrypt"), false);
+
+	auto Address = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	Address->SetIp(TeServer.Value);
+	Address->SetPort(TePort);
+
+	const int32 TestReceive = 336;
+	uint8 RecvKey[336];
+	Sock->Connect(*Address);
+	Sock->Send((uint8 *)Key.GetData(), Key.Num(), bytessent);
+	Sock->Send((uint8 *)IV.GetData(), IV.Num(), bytessent);
+	Sock->Send((uint8 *)DHInnerDataWriter.GetBytes().GetData(), DHInnerDataWriter.GetWrittenBytesCount(), bytessent);
+
+	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+	int32 CipherRead;
+	Sock->Recv(RecvKey, TestReceive, CipherRead);
+	/*End test area*/
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	BinaryWriter DHInnerRequestWriter;
+	DHInnerRequestWriter.WriteInt(0xf5045f1f);
+	DHInnerRequestWriter.Write(Nonce.GetData(), Nonce.Num());
+	DHInnerRequestWriter.Write(ServerNonce.GetData(), ServerNonce.Num());
+	DHInnerRequestWriter.TGWriteBytes(RecvKey, 336);
+	//DHInnerRequestWriter.TGWriteBytes(DH_AESEncrypted, 336);
+
+	bytessent = Sender.Send(DHInnerRequestWriter.GetBytes().GetData(), DHInnerRequestWriter.GetWrittenBytesCount());
+
+
+	BinaryReader DHCompleteReader(Sender.Receive(68).GetData(), 52);
+
 	return TArray<unsigned char>();
 }
 
-void Authenticator::GenerateKeyDataFromNonce(TArray<unsigned char> Nonce, TArray<unsigned char> ServerNonce, TArray<unsigned char> Key, TArray<unsigned char> IV)
+void Authenticator::GenerateKeyDataFromNonce(TArray<unsigned char> NewNonce, TArray<unsigned char> ServerNonce, TArray<unsigned char> &Key, TArray<unsigned char> &IV)
 {
-	//unsigned char Hash1[20];
-	//SHA1((unsigned char *)DataWriter.GetBytes().GetData(), DataWriter.GetWrittenBytesCount(), Hash1);
+// 	hash1 = sha1(bytes(new_nonce + server_nonce))
+// 	hash2 = sha1(bytes(server_nonce + new_nonce))
+// 	hash3 = sha1(bytes(new_nonce + new_nonce))
+// 
+// 	key = hash1 + hash2[:12]
+// 	iv = hash2[12:20] + hash3 + new_nonce[:4]
+
+	TArray<unsigned char> NewNServer;
+	NewNServer += NewNonce;
+	NewNServer += ServerNonce;
+
+	TArray<unsigned char> ServerNNew;
+	ServerNNew += ServerNonce;
+	ServerNNew += NewNonce;
+
+	TArray<unsigned char> NewNNew;
+	NewNNew += NewNonce;
+	NewNNew += NewNonce;
+
+
+	unsigned char Hash1[20], Hash2[20], Hash3[20];
+	SHA1((unsigned char *)NewNServer.GetData(), NewNServer.Num(), Hash1);
+	SHA1((unsigned char *)ServerNNew.GetData(), ServerNNew.Num(), Hash2);
+	SHA1((unsigned char *)NewNNew.GetData(), NewNNew.Num(), Hash3);
+
+	for (int32 i = 0; i < 20; i++)
+		Key.Add(Hash1[i]);
+	for (int32 i = 0; i < 12; i++)
+		Key.Add(Hash2[i]);
+
+	for (int32 i = 12; i < 20; i++)
+		IV.Add(Hash2[i]);
+	for (int32 i = 0; i < 20; i++)
+		IV.Add(Hash3[i]);
+	for (int32 i = 0; i < 4; i++)
+		IV.Add(NewNonce[i]);
+	return;
 }
 

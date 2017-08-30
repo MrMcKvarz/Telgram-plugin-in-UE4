@@ -88,23 +88,12 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 	{
 		length = this->ReadByte() | (this->ReadByte() << 8) | (this->ReadByte() << 16);
 		padding = length % 4;
-// 		data = this->Read(length);
-// 		if (padding > 0)
-// 		{
-// 			padding = 4 - padding;
-// 			this->Read(padding);
-// 		}
+
 	}
 	else
 	{
 		length = FirstByte;
 		padding = (length + 1) % 4;
-// 		if (padding > 0)
-// 		{
-// 			padding = 4 - padding;
-// 			this->Read(padding);
-// 		}
-// 		data = this->Read(length);
 	}
 	data = this->Read(length);
 	if(padding > 0)
