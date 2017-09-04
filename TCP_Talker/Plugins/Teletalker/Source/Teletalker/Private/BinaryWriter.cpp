@@ -11,7 +11,6 @@ BinaryWriter::~BinaryWriter()
 }
 bool BinaryWriter::WriteByte(const unsigned char * Value)
 {
-	//if (Value == nullptr) return false;
 	Buff.Push(*Value);
 	WrittenCount++;
 	return true;

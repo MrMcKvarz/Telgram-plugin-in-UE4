@@ -6,9 +6,10 @@ class TCPClient
 	bool Connected;
 	FSocket * Socket;
 	int32 BytesSent;
-	uint8 Data[256];
+
 public:
 	TCPClient();
+	~TCPClient();
 	bool Connect(FIPv4Address IP, int32 Port, int32 Timeout = 5);
 	void Close();
 	int32 Write(unsigned char * Data, int32 Size);

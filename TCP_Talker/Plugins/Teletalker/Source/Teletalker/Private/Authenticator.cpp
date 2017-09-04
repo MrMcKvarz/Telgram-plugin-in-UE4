@@ -33,23 +33,6 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #undef UI
 
-union Byte
-{
-	unsigned char byte;
-
-	struct
-	{
-		bool bit1 : 1;
-		bool bit2 : 1;
-		bool bit3 : 1;
-		bool bit4 : 1;
-		bool bit5 : 1;
-		bool bit6 : 1;
-		bool bit7 : 1;
-		bool bit8 : 1;
-	};
-};
-
 
 int64 GetInt64Big(unsigned char * Value)
 {
@@ -61,39 +44,6 @@ int64 GetInt64Big(unsigned char * Value)
 
 	return result;
 }
-
-unsigned char reverse(unsigned char b) {
-	//b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
-	b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
-	//b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
-	return b;
-}
-
-
-RSA* loadPUBLICKeyFromString(const char* publicKeyStr)
-{
-	// A BIO is an I/O abstraction (Byte I/O?)
-
-	// BIO_new_mem_buf: Create a read-only bio buf with data
-	// in string passed. -1 means string is null terminated,
-	// so BIO_new_mem_buf can find the dataLen itself.
-	// Since BIO_new_mem_buf will be READ ONLY, it's fine that publicKeyStr is const.
-	BIO* bio = BIO_new_mem_buf(publicKeyStr, strlen(publicKeyStr)); // -1: assume string is null terminated
-
-	//BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); // NO NL
-	//BIO_FLAGS
-
-												// Load the RSA key from the BIO
-	RSA* rsaPubKey = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
-	if (!rsaPubKey)
-		UE_LOG(LogTemp, Error, TEXT("Invalid rsa public key creation"))
-
-	BIO_free(bio);
-	return rsaPubKey;
-}
-
-
-
 
 bool Prime(unsigned long a)
 {
@@ -176,7 +126,6 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	DataWriter.Write(Nonce.GetData(), Nonce.Num());
 	DataWriter.Write(ServerNonce.GetData(), ServerNonce.Num());
 
-
 	unsigned char RandBytes[32];
 	RAND_bytes(RandBytes, 32);
 	DataWriter.Write(RandBytes, 32);
@@ -202,7 +151,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	BIGNUM * power = BN_new();
 	BIGNUM * message = BN_new();
 	BIGNUM * encrypted = BN_new();
-	/*Modulus of Telegram public key in hex form*/
+	/*Telegram public key in hex form*/
 	char * TelegramPublicModulus = "C150023E2F70DB7985DED064759CFECF0AF328E69A41DAF4D6F01B538135A6F91F8F8B2A0EC9BA9720CE352EFCF6C5680FFC424BD634864902DE0B4BD6D49F4E580230E3AE97D95C8B19442B3C0A10D8F5633FECEDD6926A7F6DAB0DDB7D457F9EA81B8465FCD6FFFEED114011DF91C059CAEDAF97625F6C96ECC74725556934EF781D866B34F011FCE4D835A090196E9A5F0E4449AF7EB697DDB9076494CA5F81104A305B6DD27665722C46B60E5DF680FB16B210607EF217652E60236C255F6A28315F4083A96791D7214BF64C1DF4FD0DB1944FB26A2A57031B32EEE64AD15A8BA68885CDE74A5BFC920F6ABF59BA5C75506373E7130F9042DA922179251F";
 	char * PublicExponent = "10001";
 	BN_CTX * BNCTX = BN_CTX_new();
@@ -217,7 +166,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 
 	//Request to start Diffie-Hellman key exchange
 	BinaryWriter DHWriter;
-	uint8 CipherData[256];
+	unsigned char CipherData[256];
 
 	DHWriter.WriteInt(0xd712e4be);
  	DHWriter.Write(Nonce.GetData(), Nonce.Num());
@@ -237,7 +186,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	BinaryReader DHReader(Sender.Receive(664).GetData(), 632);
 
 	uint32 ServerDHParams = DHReader.ReadInt();
-	if(ServerDHParams == 0xd0e8075c)
+	if(ServerDHParams != 0xd0e8075c)
 		UE_LOG(LogTemp, Error, TEXT("DH params failed"));
 	if(Nonce != DHReader.Read(16))
 		UE_LOG(LogTemp, Error, TEXT("Nonce failed"));
@@ -245,23 +194,24 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 		UE_LOG(LogTemp, Error, TEXT("ServeNonce failed"));
 
 	TArray<unsigned char> Key, IV;
-	unsigned char Answer[584];
+	unsigned char Answer[1024];
 	GenerateKeyDataFromNonce(NewNonce, ServerNonce,/*out*/ Key, /*out*/ IV);
 
 	AES_KEY DecryptAESKey;
 	/*WARNING: unlike other OpenSSL functions, this returns zero on success and a negative number on error */
 	AES_set_decrypt_key(Key.GetData(), 256, &DecryptAESKey);
 	auto EncryptedAnswer = DHReader.TGReadBytes();
-	auto IV2(IV);
+	TArray<unsigned char> IV2;
+	IV2 = IV;
 	const size_t encslength = ((EncryptedAnswer.Num() + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
 	AES_ige_encrypt(EncryptedAnswer.GetData(), Answer, encslength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
 
 	BinaryReader DHInnerDataReader(Answer, 584);
-	//BinaryReader DHInnerDataReader(RecvKey, 584);
+
 	DHInnerDataReader.Read(20); // hash sum
 	uint32 DHInnerConstructor = DHInnerDataReader.ReadInt();
-	if(DHInnerConstructor == 0xb5890dba)
- 		UE_LOG(LogTemp, Error, TEXT("We are fucked"));
+	if(DHInnerConstructor != 0xb5890dba)
+ 		UE_LOG(LogTemp, Error, TEXT("DH inner constructor error"));
 	if (Nonce != DHInnerDataReader.Read(16))
 		UE_LOG(LogTemp, Error, TEXT("Nonce failed"));
 	if (ServerNonce != DHInnerDataReader.Read(16))
@@ -290,8 +240,6 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 
 	BN_CTX * BNCTXGBDH = BN_CTX_new();
 	BN_CTX * BNCTXGABDH = BN_CTX_new();
-// 	gb = pow(g, b, dh_prime)
-// 	gab = pow(ga, b, dh_prime)
 
 	int32 IsGBDH = BN_mod_exp(gb, g, b, dh_prime, BNCTXGBDH);
 	int32 IsGABDH = BN_mod_exp(gab, ga, b, dh_prime, BNCTXGABDH);
@@ -326,13 +274,13 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	AES_KEY EncryptAESKey;
 	if ((AES_set_encrypt_key(Key.GetData(), 256, &EncryptAESKey) != 0))
 		UE_LOG(LogTemp, Error, TEXT("Error setting encrypt key"));
-	unsigned char DH_AESEncrypted[400];
+	unsigned char DH_AESEncrypted[336];
 	if (DHInnerEncDataWriter.GetWrittenBytesCount() % 16 != 0)
 		UE_LOG(LogTemp, Error, TEXT("AES encrypt data size not divisible by 16"));
-	//const size_t InputLength = ((DHInnerEncDataWriter.GetWrittenBytesCount() + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
+
 	const size_t InputLength = DHInnerEncDataWriter.GetWrittenBytesCount();
 	AES_ige_encrypt((unsigned char *)DHInnerEncDataWriter.GetBytes().GetData(), DH_AESEncrypted, InputLength, &EncryptAESKey, IV2.GetData(), AES_ENCRYPT);
-	//AES_encrypt()
+
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/*Python rsa encrypt test area*/
@@ -361,8 +309,8 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 // 	Sock->Recv(RecvKey, TestReceive, CipherRead);
 // 	/*End test area*/
 // 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 
-// 
+
+
 	BinaryWriter DHInnerRequestWriter;
 	DHInnerRequestWriter.WriteInt(0xf5045f1f);
 	DHInnerRequestWriter.Write(Nonce.GetData(), Nonce.Num());
@@ -372,7 +320,6 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	//DHInnerRequestWriter.Write(RecvKey, CipherRead);
   
 	bytessent = Sender.Send(DHInnerRequestWriter.GetBytes().GetData(), DHInnerRequestWriter.GetWrittenBytesCount());
-
 
 	BinaryReader DHCompleteReader(Sender.Receive(84).GetData(), 52);
 	int32 CompleteDHConst = DHCompleteReader.ReadInt();
@@ -388,9 +335,10 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	AuthKey.Reserve(256);
 	for (int32 i = 0; i < 256; i++)
 		AuthKey.Add(gabBytes[i]);
-	if(NewNonceHash1 != GetNewNonceHash1(AuthKey, NewNonce))
+	auto NewNonceHashCheck = GetNewNonceHash1(AuthKey, NewNonce);
+	if(NewNonceHash1 != NewNonceHashCheck)
 		UE_LOG(LogTemp, Error, TEXT("NewNonce hash check failed"));
-	return TArray<unsigned char>();
+	return AuthKey;
 }
 
 void Authenticator::GenerateKeyDataFromNonce(TArray<unsigned char> NewNonce, TArray<unsigned char> ServerNonce, TArray<unsigned char> &Key, TArray<unsigned char> &IV)

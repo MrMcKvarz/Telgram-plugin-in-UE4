@@ -21,6 +21,12 @@ TCPTransport::TCPTransport()
 	SendCounter = 0;
 }
 
+TCPTransport::~TCPTransport()
+{
+	Close();
+	delete Client;
+}
+
 bool TCPTransport::Connect()
 {
 	if (Client == nullptr) return false;
@@ -54,27 +60,25 @@ TArray<unsigned char> TCPTransport::Receive()
  	auto SendCounterBytes = Client->Read(4);
 	int32 SendCounter = BinaryReader(SendCounterBytes.GetData(), 4).ReadInt();
 
-	if (SendCounter == 2)
-		auto stophere = 0;
 	auto Packet = Client->Read(PacketLength - 12);
 
 	auto HashBytes = Client->Read(4);
-	int32 Hash = BinaryReader(HashBytes.GetData(), 4).ReadInt();
+	uint32 Hash = BinaryReader(HashBytes.GetData(), 4).ReadInt();
  
 	BinaryWriter Writer;
 	Writer.WriteInt(PacketLength);
 	Writer.WriteInt(SendCounter);
 	Writer.Write(Packet.GetData(), Packet.Num());
 	uint32 CRC = GetCrc(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
-	//if(Hash != CRC) // this should do smth 
-		//return TArray<char>();
+	if(Hash != CRC) // this should do smth 
+		UE_LOG(LogTemp, Error, TEXT("Hash tcp error"));
 	return Packet;
 	
 }
 
 void TCPTransport::Close()
 {
-
+	Client->Close();
 }
 
 void TCPTransport::CancelReceive()
@@ -87,8 +91,3 @@ uint32 TCPTransport::GetCrc(const void * Data, int32 Size)
 	FCrc::Init();
 	return FCrc::MemCrc32(Data, Size);
 }
-
-// long long TCPTransport::GetNewMessageID()
-// {
-
-// }

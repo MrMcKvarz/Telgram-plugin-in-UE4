@@ -10,6 +10,12 @@ TCPClient::TCPClient()
 	RecreateSocket();
 }
 
+TCPClient::~TCPClient()
+{
+	Close();
+	delete Socket;
+}
+
 bool TCPClient::Connect(FIPv4Address IP, int32 Port, int32 Timeout /*= 5*/)
 {
 	if (Socket == nullptr) return false;
@@ -23,7 +29,7 @@ bool TCPClient::Connect(FIPv4Address IP, int32 Port, int32 Timeout /*= 5*/)
 
 void TCPClient::Close()
 {
-
+	Socket->Close();
 }
 
 int32 TCPClient::Write(unsigned char * Data, int32 Size)
@@ -37,16 +43,17 @@ int32 TCPClient::Write(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 {
+	uint8 Data[2048];
 	int32 BytesRead = -1;
 	bool Receive = Socket->Recv(Data, Size, BytesRead);
+	TArray<unsigned char> Temp;
 	if (Receive)
 	{
-		TArray<unsigned char> Temp;
+		Temp.Reserve(Size);
 		for (int i = 0; i < Size; i++)
-			Temp.Push(Data[i]);
-		return Temp;
+			Temp.Add(Data[i]);
 	}
-	return TArray<unsigned char>();
+	return Temp;
 }
 
 bool TCPClient::IsConnected()

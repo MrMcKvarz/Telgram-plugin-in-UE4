@@ -40,10 +40,10 @@ TArray<unsigned char> MTProtoPlainSender::Receive(int32 Size)
 {
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	BinaryReader Reader(Transport->Receive().GetData(), Size);
-	auto auth = Reader.ReadLong(); // auth_key_id
-	auto msgid = Reader.ReadLong(); // msg_id
+	int64 auth = Reader.ReadLong(); // auth_key_id
+	int64 msgid = Reader.ReadLong(); // msg_id
 	int32 MessageLength = Reader.ReadInt();
-	auto Response = Reader.Read(MessageLength);
+	TArray<unsigned char> Response = Reader.Read(MessageLength);
 
 	return Response;
 }
@@ -56,9 +56,9 @@ int64 MTProtoPlainSender::GetNewMessageID()
 	double nanoseconds = nano.count() - (sec.count() * 1e+9);
 	long long new_msg_id = ((sec.count() << 32) | int(nanoseconds * 2));
 
-// 	if (LastMessageID >= new_msg_id)
-// 		new_msg_id = LastMessageID + 4;
-// 	LastMessageID = new_msg_id;
+	if (LastMessageID >= new_msg_id)
+		new_msg_id = LastMessageID + 4;
+	LastMessageID = new_msg_id;
 
 	return new_msg_id;
 }

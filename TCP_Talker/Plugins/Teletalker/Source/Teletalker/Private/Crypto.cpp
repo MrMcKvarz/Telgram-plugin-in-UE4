@@ -82,13 +82,13 @@ void Crypto::Factorize(long long *pq, long long *p, long long *q)
 	unsigned long long g = 0;
 	int i;
 	for (i = 0; i < 3 || it < 1000; i++) {
-		int q = ((rand() & 15) + 17) % what;
+		int q1 = ((rand() & 15) + 17) % what;
 		unsigned long long x = (long long)rand() % (what - 1) + 1, y = x;
 		int lim = 1 << (i + 18);
 		int j;
 		for (j = 1; j < lim; j++) {
 			++it;
-			unsigned long long a = x, b = x, c = q;
+			unsigned long long a = x, b = x, c = q1;
 			while (b) {
 				if (b & 1) {
 					c += a;

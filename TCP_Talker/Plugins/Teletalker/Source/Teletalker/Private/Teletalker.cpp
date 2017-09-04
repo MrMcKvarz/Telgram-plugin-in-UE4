@@ -100,24 +100,13 @@ FReply FTeletalkerModule::ButtonClicked()
 	FIPv4Address TelegramServer(149, 154, 167, 40);
 	const int32 TelegramPort = 443;
 
-// 	FIPv4Address TelegramServer(127, 0, 0, 1);
-// 	const int32 TelegramPort = 27015;
-
-// 	FIPv4Address TelegramServer(127, 0, 0, 1);
-// 	const int32 TelegramPort = 27015;
-
 	TCPTransport Transport(TelegramServer, TelegramPort);
 	if (Transport.Connect())
 		UE_LOG(LogTemp, Log, TEXT("Connected"))
 
-	Authenticator::Authenticate(&Transport);
+	TArray<unsigned char> AuthKey = Authenticator::Authenticate(&Transport);
 
 
-
-// 	BinaryWriter TestWriter;
-// 	TestWriter.WriteLong(996);
-// 	BinaryReader TestReader(TestWriter.GetBytes(), TestWriter.GetWrittenBytesCount());
-// 	UE_LOG(LogTemp, Log, TEXT("Constructors match %d"), TestReader.ReadLong() )
 
 	return FReply::Handled();
 }

@@ -11,6 +11,7 @@ class TCPTransport
 
 public:
 	TCPTransport();
+	~TCPTransport();
 	TCPTransport(FIPv4Address IP, int32 PorT, int32 Timeout = 5);
 	bool Connect();
 	bool IsConnected();
