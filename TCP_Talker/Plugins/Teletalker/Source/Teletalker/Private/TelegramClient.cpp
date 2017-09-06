@@ -1,6 +1,11 @@
 #include "TelegramClient.h"
 #include "network/Authenticator.h"
 #include "network/TCPTransport.h"
+#include "MTProtoSender.h"
+
+/*Prob should not be here*/
+#include "extensions/BinaryReader.h"
+#include "extensions/BinaryWriter.h"
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
@@ -9,12 +14,6 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #undef UI
 
-TelegramClient::TelegramClient()
-{
-	ClientSession = new Session("");
-	API_ID = 0;
-	API_Hash = "";
-}
 
 TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_hash)
 {
@@ -36,7 +35,20 @@ bool TelegramClient::Connect(FString AuthKey)
 	if(ClientSession->Save())
 		UE_LOG(LogTemp, Warning, TEXT("Session prob saved"));
 
-
+	MTProtoSender Sender(&Transport, ClientSession);
+// 	if(Sender.Connect())
+// 		UE_LOG(LogTemp, Warning, TEXT("MTProtoSender connected"));
+	BinaryWriter InitConnection;
+	InitConnection.WriteInt(API_ID);
+	InitConnection.TGWriteString(ClientSession->GetDeviceModel());
+	InitConnection.TGWriteString(ClientSession->GetSystemVersion());
+	InitConnection.TGWriteString(ClientSession->GetAppVersion());
+	InitConnection.TGWriteString(ClientSession->GetLangCode());
+	InitConnection.TGWriteString(ClientSession->GetSystemLangCode());
+	InitConnection.TGWriteString(ClientSession->GetLangPack());
+	InitConnection.WriteInt(0xc4f9186b); // get config request constructor
+	int32 InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
+	UE_LOG(LogTemp, Warning, TEXT("Init sent %d"), InitSent);
 
 	return true;
 

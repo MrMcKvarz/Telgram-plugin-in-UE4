@@ -13,7 +13,7 @@ class Session
 	
 	FString DeviceModel;
 	FString SystemVersion;
-	FString AppVerison;
+	FString AppVersion;
 	FString LangCode;
 	FString SystemLangCode;
 	FString LangPack;
@@ -33,4 +33,31 @@ public:
 
 	int32 GetPort() { return Port; }
 	void SetPort(int32 NewPort) { if (NewPort > 0) Port = NewPort; }
+
+	unsigned long long GetSalt() { return Salt; }
+	void SetSalt(unsigned long long NewSalt) { if (NewSalt > 0) Salt = NewSalt; }
+
+	unsigned long long GetID() { return ID; }
+	void SetID(unsigned long long NewID) { if (NewID > 0) ID = NewID; }
+
+	FString GetDeviceModel() { return DeviceModel; }
+	void SetDeviceModel(FString NewDeviceModel) { DeviceModel = NewDeviceModel; }
+
+	FString GetSystemVersion() { return SystemVersion; }
+	void SetSystemVersion(FString NewSystemVersion) { SystemVersion = NewSystemVersion; }
+
+	FString GetAppVersion() { return AppVersion; }
+	void SetAppVersion(FString NewAppVersion) { AppVersion = NewAppVersion; }
+
+	FString GetLangCode() { return LangCode; }
+	void SetLangCode(FString NewLangCode) { LangCode = NewLangCode; }
+
+	FString GetSystemLangCode() { return SystemLangCode; }
+	void SetSystemLangCode(FString NewSystemLangCode) { SystemLangCode = NewSystemLangCode; }
+
+	FString GetLangPack() { return LangPack; }
+	void SetLangPack(FString NewLangPack) { LangPack = NewLangPack; }
+
+	FString GetUserID() { return UserID; }
+	void SetUserID(FString NewUserID) { UserID = NewUserID; }
 };

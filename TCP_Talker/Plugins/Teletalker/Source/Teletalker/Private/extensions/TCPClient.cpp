@@ -22,7 +22,7 @@ bool TCPClient::Connect(FIPv4Address IP, int32 Port, int32 Timeout /*= 5*/)
 	Address->SetIp(IP.Value);
 	Address->SetPort(Port);
 
-	Connected = Socket->Connect(*Address);
+ 	Connected = Socket->Connect(*Address);
 	return Connected;
 }
 
@@ -57,7 +57,6 @@ TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 
 bool TCPClient::IsConnected()
 {
-	
 	return Connected;
 }
 

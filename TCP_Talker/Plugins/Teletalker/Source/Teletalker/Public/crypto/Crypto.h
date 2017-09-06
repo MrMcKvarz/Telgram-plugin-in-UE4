@@ -11,5 +11,7 @@ public:
 	//static int64 Factorize(long long pq);
 	static int64 GetRandomLong();
 
+	static void CalculateKey(TArray<unsigned char> SharedKey, TArray<unsigned char> MessageKey, TArray<unsigned char> &Key, TArray<unsigned char> &IV);
+
 	TArray<unsigned char> RSAPublicEncrypt(int64 FingerPrint, unsigned char * Data, int32 Size);
 };

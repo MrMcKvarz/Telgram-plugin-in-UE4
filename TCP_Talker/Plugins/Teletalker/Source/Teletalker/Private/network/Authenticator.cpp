@@ -335,6 +335,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	auto NewNonceHashCheck = GetNewNonceHash1(AuthKey, NewNonce);
 	if(NewNonceHash1 != NewNonceHashCheck)
 		UE_LOG(LogTemp, Error, TEXT("NewNonce hash check failed"));
+	//Sender.Disconnect();
 	return AuthKey;
 }
 

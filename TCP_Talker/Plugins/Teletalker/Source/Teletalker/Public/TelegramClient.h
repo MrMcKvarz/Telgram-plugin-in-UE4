@@ -9,7 +9,6 @@ class TelegramClient
 	int32 API_ID;
 	FString API_Hash;
 public:
-	TelegramClient();
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
 	bool Connect(FString AuthKey = "");
 };

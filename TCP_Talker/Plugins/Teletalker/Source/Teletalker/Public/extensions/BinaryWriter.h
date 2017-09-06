@@ -19,6 +19,7 @@ public:
 	bool WriteBig(const unsigned char * Value, int32 Size);
 	void Flush();
 	bool TGWriteBytes(const unsigned char * Value, int32 Size);
+	bool TGWriteString(FString Value);
 	TArray<unsigned char> GetBytes(bool Flush = true);
 	TArray<unsigned char> GetBigBytes(bool Flush = true);
 	int32 GetWrittenBytesCount();

@@ -4,7 +4,8 @@
 #include "extensions/BinaryReader.h"
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
-#include "ThirdParty/OpenSSL/1.0.2g/include/Win64/VS2015/openssl/rand.h"
+#include "openssl/rand.h"
+#include "openssl/sha.h"
 THIRD_PARTY_INCLUDES_END
 #undef UI
 
@@ -128,6 +129,62 @@ int64 Crypto::GetRandomLong()
 	}
 	return 0;
 	
+}
+
+void Crypto::CalculateKey(TArray<unsigned char> SharedKey, TArray<unsigned char> MessageKey, TArray<unsigned char> &Key, TArray<unsigned char> &IV)
+{
+	/*https://core.telegram.org/api/end-to-end#serialization-and-encryption-of-outgoing-messages*/
+// 		sha1a = sha1(msg_key + shared_key[x:x + 32]).digest()
+// 		sha1b = sha1(shared_key[x + 32:x + 48] + msg_key +
+// 			shared_key[x + 48:x + 64]).digest()
+// 
+// 		sha1c = sha1(shared_key[x + 64:x + 96] + msg_key).digest()
+// 		sha1d = sha1(msg_key + shared_key[x + 96:x + 128]).digest()
+// 
+// 		key = sha1a[0:8] + sha1b[8:20] + sha1c[4:16]
+// 		iv = sha1a[8:20] + sha1b[0:8] + sha1c[16:20] + sha1d[0:8]
+
+	int32 x = 0; // prob need for non client message
+	unsigned char sha1a[20], sha1b[20], sha1c[20], sha1d[20];
+	TArray<unsigned char> SHA1A_Array, SHA1B_Array, SHA1C_Array, SHA1D_Array;
+
+	SHA1A_Array += MessageKey;
+	for (int32 i = 0; i < 32; i++)
+		SHA1A_Array.Add(SharedKey[i]);
+	SHA1(SHA1A_Array.GetData(), SHA1A_Array.Num(), sha1a);
+
+	for (int32 i = 32; i < 48; i++)
+		SHA1B_Array.Add(SharedKey[i]);
+	SharedKey += MessageKey;
+	for (int32 i = 48; i < 64; i++)
+		SHA1B_Array.Add(SharedKey[i]);
+	SHA1(SHA1B_Array.GetData(), SHA1B_Array.Num(), sha1b);
+
+	for (int32 i = 64; i < 96; i++)
+		SHA1C_Array.Add(SharedKey[i]);
+	SHA1C_Array += MessageKey;
+	SHA1(SHA1C_Array.GetData(), SHA1C_Array.Num(), sha1c);
+
+	SHA1D_Array += MessageKey;
+	for (int32 i = 96; i < 128; i++)
+		SHA1D_Array.Add(SharedKey[i]);
+	SHA1(SHA1D_Array.GetData(), SHA1D_Array.Num(), sha1d);
+
+	for (int32 i = 0; i < 8; i++)
+		Key.Add(sha1a[i]);
+	for (int32 i = 8; i < 20; i++)
+		Key.Add(sha1b[i]);
+	for (int32 i = 4; i < 16; i++)
+		Key.Add(sha1c[i]);
+
+	for (int32 i = 8; i < 20; i++)
+		IV.Add(sha1a[i]);
+	for (int32 i = 0; i < 8; i++)
+		IV.Add(sha1b[i]);
+	for (int32 i = 16; i < 20; i++)
+		IV.Add(sha1c[i]);
+	for (int32 i = 0; i < 8; i++)
+		IV.Add(sha1d[i]);
 }
 
 // TArray<unsigned char> Crypto::RSAPublicEncrypt(int64 FingerPrint, unsigned char * Data, int32 Size)

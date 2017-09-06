@@ -41,7 +41,7 @@ Session::Session(FString SessionUserdID)
 	UserID = SessionUserdID;
 	DeviceModel = GetOSName();
 	SystemVersion = GetOSVersion();
-	AppVerison = "1.0";
+	AppVersion = "1.0";
 	LangCode = "en";
 	SystemLangCode = LangCode;
 	LangPack = "";

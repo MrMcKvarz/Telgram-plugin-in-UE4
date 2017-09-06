@@ -20,4 +20,5 @@ public:
 	int64 GetNewMessageID();
 
 
+
 };

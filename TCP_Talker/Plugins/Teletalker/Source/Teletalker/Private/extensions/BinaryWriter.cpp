@@ -116,6 +116,18 @@ bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 	return true;
 }
 
+bool BinaryWriter::TGWriteString(FString Value)
+{
+	uint8 Buffer[2048];
+	int32 Size = Value.GetCharArray().Num();
+	auto UTF8Value = TCHAR_TO_UTF8(Value.GetCharArray().GetData());
+
+	if (FString::ToBlob(Value, Buffer, Size))
+		return TGWriteBytes((unsigned char *)UTF8Value, Size);
+	return false;
+
+}
+
 TArray<unsigned char> BinaryWriter::GetBytes(bool Flush /*= true*/)
 {
 	return Buff;
