@@ -12,12 +12,8 @@
 #include "Reply.h"
 #include "SlateDelegates.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "BinaryWriter.h"
-#include "BinaryReader.h"
-#include "TCPTransport.h"
-#include "Authenticator.h"
-#include "Networking.h"
 #include "UnrealMathUtility.h"
+#include "TelegramClient.h"
 
 static const FName TeletalkerTabName("Teletalker");
 
@@ -97,16 +93,10 @@ TSharedRef<SDockTab> FTeletalkerModule::OnSpawnPluginTab(const FSpawnTabArgs& Sp
 
 FReply FTeletalkerModule::ButtonClicked()
 {
-	FIPv4Address TelegramServer(149, 154, 167, 40);
-	const int32 TelegramPort = 443;
-
-	TCPTransport Transport(TelegramServer, TelegramPort);
-	if (Transport.Connect())
-		UE_LOG(LogTemp, Log, TEXT("Connected"))
-
-	TArray<unsigned char> AuthKey = Authenticator::Authenticate(&Transport);
-
-
+	const int32 API_ID = 122648;
+	const FString API_HASH = "6b5b14d9cdaac1a56e92868c841d7ec5";
+	TelegramClient Client("TeleTalkerSession", API_ID, API_HASH);
+	Client.Connect();
 
 	return FReply::Handled();
 }

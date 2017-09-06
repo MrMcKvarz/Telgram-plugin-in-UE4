@@ -6,6 +6,7 @@ class TCPTransport;
 
 class MTProtoPlainSender
 {
+protected:
 	int32 Sequence;
 	int32 TimeOffset;
 	int64 LastMessageID;

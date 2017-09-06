@@ -1,4 +1,4 @@
-#include "BinaryWriter.h"
+#include "extensions/BinaryWriter.h"
 #include <algorithm> 
 BinaryWriter::BinaryWriter()
 {
@@ -16,10 +16,10 @@ bool BinaryWriter::WriteByte(const unsigned char * Value)
 	return true;
 }
 
-bool BinaryWriter::WriteInt(int Value)
+bool BinaryWriter::WriteInt(int32 Value)
 {
 	unsigned char * CValue = (unsigned char *)(&Value);
-	for (int i = 0; i < sizeof(Value); i++)
+	for (int32 i = 0; i < sizeof(Value); i++)
 	{
 		Buff.Push(CValue[i]);
 	}
@@ -27,11 +27,11 @@ bool BinaryWriter::WriteInt(int Value)
 	return true;
 }
 
-bool BinaryWriter::WriteBigInt(unsigned int Value)
+bool BinaryWriter::WriteBigInt(int32 Value)
 {
 	unsigned char * CValue = (unsigned char *)(&Value);
 	//if (CValue == nullptr) return false;
-	for (int i = 3; i >= 0; i--)
+	for (int32 i = 3; i >= 0; i--)
 	{
 		Buff.Push(CValue[i]);
 	}
@@ -43,7 +43,7 @@ bool BinaryWriter::WriteLong(long long Value)
 {
 	unsigned char * CValue = (unsigned char *)(&Value);
 	//ReverseByteOrder(CValue, sizeof(Value));
-	for (int i = 0; i < sizeof(Value); i++)
+	for (int32 i = 0; i < sizeof(Value); i++)
 	{
 		Buff.Push(CValue[i]);
 	}
@@ -51,10 +51,10 @@ bool BinaryWriter::WriteLong(long long Value)
 	return true;
 }
 
-bool BinaryWriter::Write(const unsigned char * Value, int Size)
+bool BinaryWriter::Write(const unsigned char * Value, int32 Size)
 {
 	if (Value == nullptr || Size <= 0) return false;
-	for (int i = 0; i < Size; i++)
+	for (int32 i = 0; i < Size; i++)
 	{
 		Buff.Push(Value[i]);
 	}
@@ -62,10 +62,10 @@ bool BinaryWriter::Write(const unsigned char * Value, int Size)
 	return true;
 }
 
-bool BinaryWriter::WriteBig(const unsigned char * Value, int Size)
+bool BinaryWriter::WriteBig(const unsigned char * Value, int32 Size)
 {
 	if (Value == nullptr || Size <= 0) return false;
-	for (int i = Size - 1; i >= 0 ; i--)
+	for (int32 i = Size - 1; i >= 0 ; i--)
 	{
 		Buff.Push(Value[i]);
 	}
@@ -125,7 +125,7 @@ TArray<unsigned char> BinaryWriter::GetBigBytes(bool Flush /*= true*/)
 {
 	TArray<unsigned char> Temp;
 	
-	for (int i = 0; i < Buff.Num(); i++)
+	for (int32 i = 0; i < Buff.Num(); i++)
 		Temp.Add(Buff[Buff.Num() - i - 1]);
 	return Temp;
 }
@@ -136,7 +136,7 @@ int32 BinaryWriter::GetWrittenBytesCount()
 } 
 
 
-void BinaryWriter::ReverseByteOrder(char * Value, int Size)
+void BinaryWriter::ReverseByteOrder(char * Value, int32 Size)
 {
 	char* start = Value;
 	char *istart = start, *iend = istart + Size;

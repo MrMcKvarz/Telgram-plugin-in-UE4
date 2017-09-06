@@ -1,6 +1,5 @@
-#include "TCPClient.h"
+#include "extensions/TCPClient.h"
 #include "SharedPointer.h"
-#include "Sockets.h"
 
 TCPClient::TCPClient()
 {

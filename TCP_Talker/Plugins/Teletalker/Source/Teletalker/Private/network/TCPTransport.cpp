@@ -1,6 +1,7 @@
-#include "TCPTransport.h"
-#include "BinaryWriter.h"
-#include "BinaryReader.h"
+#include "network/TCPTransport.h"
+#include "extensions/BinaryWriter.h"
+#include "extensions/BinaryReader.h"
+#include "extensions//TCPClient.h"
 #include <chrono>
 
 TCPTransport::TCPTransport(FIPv4Address IP, int32 Port, int32 Timeout /*= 5*/)

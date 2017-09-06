@@ -1,6 +1,8 @@
 #pragma once
 #include "Engine.h"
-#include "TCPClient.h"
+#include "Networking.h"
+class TCPClient;
+
 class TCPTransport
 {
 	FIPv4Address IP;

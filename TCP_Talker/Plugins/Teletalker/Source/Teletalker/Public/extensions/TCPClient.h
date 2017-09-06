@@ -1,6 +1,14 @@
 #pragma once
-#include "Engine.h"
+
+#include "AllowWindowsPlatformTypes.h"
+
 #include "Networking.h"
+#include "SocketSubsystem.h"
+#include "Sockets.h"
+#include "IPv4Address.h"
+
+#include "HideWindowsPlatformTypes.h"
+
 class TCPClient
 {
 	bool Connected;

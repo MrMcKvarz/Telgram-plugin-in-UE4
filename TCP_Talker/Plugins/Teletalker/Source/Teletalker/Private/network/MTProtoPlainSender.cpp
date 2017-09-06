@@ -1,7 +1,7 @@
 #include "MTProtoPlainSender.h"
-#include "TCPTransport.h"
-#include "BinaryWriter.h"
-#include "BinaryReader.h"
+#include "network/TCPTransport.h"
+#include "extensions/BinaryWriter.h"
+#include "extensions/BinaryReader.h"
 #include <chrono>
 #include <thread>
 
@@ -15,16 +15,18 @@ MTProtoPlainSender::MTProtoPlainSender(TCPTransport * Transport)
 
 bool MTProtoPlainSender::Connect()
 {
+	if (Transport == nullptr) return false;
 	return Transport->Connect();	
 }
 
 void MTProtoPlainSender::Disconnect()
 {
-
+	Transport->Close();
 }
 
 int32 MTProtoPlainSender::Send(unsigned char * Data, int32 Size)
 {
+	if (Transport == nullptr) return 0;
 	BinaryWriter Writer;
 	Writer.WriteLong(0);
 	Writer.WriteLong(GetNewMessageID()); //long
@@ -38,6 +40,7 @@ int32 MTProtoPlainSender::Send(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> MTProtoPlainSender::Receive(int32 Size)
 {
+	if (Transport == nullptr) return TArray<unsigned char>();
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	BinaryReader Reader(Transport->Receive().GetData(), Size);
 	int64 auth = Reader.ReadLong(); // auth_key_id

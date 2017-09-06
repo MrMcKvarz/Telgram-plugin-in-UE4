@@ -10,7 +10,11 @@ public class Teletalker : ModuleRules
 		
 		PublicIncludePaths.AddRange(
 			new string[] {
-				"Teletalker/Public"
+				"Teletalker/Public",
+                "Teletalker/Public/crypto",
+                "Teletalker/Public/extensions",
+                "Teletalker/Public/network",
+                "Teletalker/Public/tl"
 
 				// ... add public include paths required here ...
 			}
@@ -19,7 +23,11 @@ public class Teletalker : ModuleRules
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Teletalker/Private"
+				"Teletalker/Private",
+                "Teletalker/Private/crypto",
+                "Teletalker/Private/extensions",
+                "Teletalker/Private/network",
+                "Teletalker/Private/tl"
                 
 				// ... add other private include paths required here ...
 			}
@@ -32,7 +40,9 @@ public class Teletalker : ModuleRules
 				"Core",
                  "Sockets",
                 "Networking",
-                "OpenSSL"
+                "OpenSSL",
+                "Json",
+                "JsonUtilities"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

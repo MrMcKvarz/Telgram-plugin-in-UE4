@@ -1,17 +1,14 @@
-#include "Authenticator.h"
-#include "MTProtoPlainSender.h"
-#include "BinaryReader.h"
-#include "BinaryWriter.h"
+#include "network/Authenticator.h"
+#include "network/MTProtoPlainSender.h"
+#include "extensions/BinaryReader.h"
+#include "extensions/BinaryWriter.h"
 #include <bitset>
-#include "Crypto.h"
+#include "crypto/Crypto.h"
 
 #include "Networking.h"
 
-#include <gsl/gsl_byte>
-#include <gsl/span>
 #include <thread>
 #include <chrono>
-
 
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
@@ -25,7 +22,6 @@ THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/OpenSSL/1.0.2g/include/Win64/VS2015/openssl/bn.h"
 #include "HideWindowsPlatformTypes.h"
 #include "BigInt.h"
-
 
 #include "IPv4Address.h"
 #include "SocketSubsystem.h"
@@ -75,6 +71,7 @@ bool Prime(unsigned long a)
 TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 {
 	MTProtoPlainSender Sender(Transport);
+	Sender.Connect();
 
 	//Send scheme https://core.telegram.org/mtproto/samples-auth_key
 

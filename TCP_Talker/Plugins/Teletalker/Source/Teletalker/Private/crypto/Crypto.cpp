@@ -1,6 +1,12 @@
-#include "Crypto.h"
+#include "crypto/Crypto.h"
 #include "Engine.h"
 #include <random>
+#include "extensions/BinaryReader.h"
+#define UI UI_ST
+THIRD_PARTY_INCLUDES_START
+#include "ThirdParty/OpenSSL/1.0.2g/include/Win64/VS2015/openssl/rand.h"
+THIRD_PARTY_INCLUDES_END
+#undef UI
 
 int64 Crypto::SmallMultiplier(int64 pq)
 {
@@ -49,22 +55,6 @@ int64 Crypto::SmallMultiplier(int64 pq)
 	return FMath::Min(p, g);
 }
 
-// int64 Crypto::GCD(int64 a, int64 b)
-// {
-// 	while (a != 0 && b != 0)
-// 		while (b & 1 == 0)
-// 			b >>= 1;
-// 
-// 	while (a & 1 == 0)
-// 		a >>= 1;
-// 
-// 	if (a > b)
-// 		a -= b;
-// 	else
-// 		b -= a;
-// 	return a ? b == 0 : b;
-// }
-
 unsigned long long Crypto::GCD(unsigned long long a, unsigned long long b)
 {
 	return b ? GCD(b, a % b) : a;
@@ -74,7 +64,6 @@ unsigned long long Crypto::GCD(unsigned long long a, unsigned long long b)
 void Crypto::Factorize(long long *pq, long long *p, long long *q)
 {
 // 	Should work in any case
-// 	Rewrite this code
 	unsigned long long what = *pq;
 
 	int it = 0;
@@ -127,6 +116,18 @@ void Crypto::Factorize(long long *pq, long long *p, long long *q)
 	*q = p2;
 	return;
 	//return Crypto::SmallMultiplier(pq);
+}
+
+int64 Crypto::GetRandomLong()
+{
+	unsigned char Buff[16];
+	if (RAND_bytes(Buff, 8))
+	{
+		BinaryReader Reader(Buff, 8);
+		return Reader.ReadLong();
+	}
+	return 0;
+	
 }
 
 // TArray<unsigned char> Crypto::RSAPublicEncrypt(int64 FingerPrint, unsigned char * Data, int32 Size)
