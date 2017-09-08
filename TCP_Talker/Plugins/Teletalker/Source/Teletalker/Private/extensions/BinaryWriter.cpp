@@ -92,7 +92,7 @@ bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 			padding = 4 - padding;
 		int32 length = Size;
 		if (!WriteByte((unsigned char *)(&length))) return false;
-		if (!WriteBig(Value, Size)) return false;
+		WriteBig(Value, Size);
 	}
 	else
 	{
@@ -118,14 +118,16 @@ bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 
 bool BinaryWriter::TGWriteString(FString Value)
 {
-	uint8 Buffer[2048];
-	int32 Size = Value.GetCharArray().Num();
-	auto UTF8Value = TCHAR_TO_UTF8(Value.GetCharArray().GetData());
+	//uint8 Buffer[2048];
 
-	if (FString::ToBlob(Value, Buffer, Size))
-		return TGWriteBytes((unsigned char *)UTF8Value, Size);
-	return false;
+	
 
+// 	if (FString::ToHexBlob(Value, Buffer, Value.Len()))
+// 	{
+		auto UTF8Value = TCHAR_TO_UTF8(*Value);
+		return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
+	//}
+	//return false;
 }
 
 TArray<unsigned char> BinaryWriter::GetBytes(bool Flush /*= true*/)
