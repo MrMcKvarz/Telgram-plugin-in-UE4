@@ -176,7 +176,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	DHWriter.Write(Fingerprint.GetData(), 8);
 
 	BN_bn2bin(encrypted, CipherData);
-	DHWriter.TGWriteBytes(CipherData, 256);// TestReceive);
+	DHWriter.TGWriteBytes(CipherData, 256);
 
 	int32 bytessentdh = Sender.Send(DHWriter.GetBytes().GetData(), DHWriter.GetWrittenBytesCount());
 
@@ -197,6 +197,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	AES_KEY DecryptAESKey;
 	/*WARNING: unlike other OpenSSL functions, this returns zero on success and a negative number on error */
 	AES_set_decrypt_key(Key.GetData(), 256, &DecryptAESKey);
+
 	auto EncryptedAnswer = DHReader.TGReadBytes();
 	TArray<unsigned char> IV2;
 	IV2 = IV;
@@ -239,13 +240,13 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	BN_CTX * BNCTXGABDH = BN_CTX_new();
 
 	int32 IsGBDH = BN_mod_exp(gb, g, b, dh_prime, BNCTXGBDH);
-	int32 IsGABDH = BN_mod_exp(gab, ga, b, dh_prime, BNCTXGABDH);
+	int32 IsGABDH = BN_mod_exp(gab, ga, b, dh_prime, BNCTXGABDH); //calulating auth key
 	unsigned char gbBytes[256];
 	if(!BN_bn2bin(gb, gbBytes))
 		UE_LOG(LogTemp, Error, TEXT("Failed BIGNUM conversion"));
 	unsigned char gabBytes[256];
 	if (!BN_bn2bin(gab, gabBytes))
-	if(!(IsGBDH && IsGABDH))
+	if((IsGBDH && IsGABDH))
 		UE_LOG(LogTemp, Error, TEXT("Computation Ok"));
 
 	/*Client DH inner data generation*/
@@ -278,44 +279,12 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	const size_t InputLength = DHInnerEncDataWriter.GetWrittenBytesCount();
 	AES_ige_encrypt((unsigned char *)DHInnerEncDataWriter.GetBytes().GetData(), DH_AESEncrypted, InputLength, &EncryptAESKey, IV2.GetData(), AES_ENCRYPT);
 
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/*Python rsa encrypt test area*/
-// 	FIPv4Address TeServer(127, 0, 0, 1);
-// 	const int32 TePort = 27015;
-// 
-// 	FSocket *Sock = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateSocket(NAME_Stream, TEXT("PythonEncrypt"), false);
-// 
-// 	auto Address = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-// 	Address->SetIp(TeServer.Value);
-// 	Address->SetPort(TePort);
-// 
-// 	const int32 TestReceive = 336;
-// 	uint8 RecvKey[336];
-// 	Sock->Connect(*Address);
-// 	Sock->Send((uint8 *)DHReader.GetBytes().GetData(), DHReader.GetBytes().Num(), bytessent);
-// 	Sock->Send((uint8 *)NewNonce.GetData(), NewNonce.Num(), bytessent);
-// 	Sock->Send((uint8 *)Nonce.GetData(), Nonce.Num(), bytessent);
-// 	Sock->Send((uint8 *)ServerNonce.GetData(), ServerNonce.Num(), bytessent);
-// 	Sock->Send((uint8 *)gbBytes, 256, bytessent);
-// 	Sock->Send((uint8 *)DHInnerEncDataWriter.GetBytes().GetData(), DHInnerEncDataWriter.GetWrittenBytesCount(), bytessent);
-// 	
-// 	std::this_thread::sleep_for(std::chrono::milliseconds(10));
-// 
-// 	int32 CipherRead;
-// 	Sock->Recv(RecvKey, TestReceive, CipherRead);
-// 	/*End test area*/
-// 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 	BinaryWriter DHInnerRequestWriter;
 	DHInnerRequestWriter.WriteInt(0xf5045f1f);
 	DHInnerRequestWriter.Write(Nonce.GetData(), Nonce.Num());
 	DHInnerRequestWriter.Write(ServerNonce.GetData(), ServerNonce.Num());
-	//DHInnerRequestWriter.TGWriteBytes(RecvKey, 336);
 	DHInnerRequestWriter.TGWriteBytes(DH_AESEncrypted, 336);
-	//DHInnerRequestWriter.Write(RecvKey, CipherRead);
-  
+ 
 	bytessent = Sender.Send(DHInnerRequestWriter.GetBytes().GetData(), DHInnerRequestWriter.GetWrittenBytesCount());
 
 	BinaryReader DHCompleteReader(Sender.Receive(84).GetData(), 52);
@@ -335,7 +304,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	auto NewNonceHashCheck = GetNewNonceHash1(AuthKey, NewNonce);
 	if(NewNonceHash1 != NewNonceHashCheck)
 		UE_LOG(LogTemp, Error, TEXT("NewNonce hash check failed"));
-	//Sender.Disconnect();
+
 	return AuthKey;
 }
 
@@ -377,9 +346,9 @@ TArray<unsigned char> Authenticator::GetNewNonceHash1(TArray<unsigned char> Auth
 	unsigned char AuthSHA[20];
 	SHA1(AuthKey.GetData(), AuthKey.Num(), AuthSHA);
 	BinaryReader Reader(AuthSHA, 20);
-	auto Aux_Hash = Reader.ReadLong();
+	unsigned long long Aux_Hash = Reader.ReadLong();
 	Reader.Read(4);
-	auto Key_ID = Reader.ReadLong();
+	unsigned long long Key_ID = Reader.ReadLong();
 	
 	BinaryWriter Writer;
 	Writer.Write(NewNonce.GetData(), NewNonce.Num());

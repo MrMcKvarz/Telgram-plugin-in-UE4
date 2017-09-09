@@ -28,7 +28,7 @@ int32 MTProtoPlainSender::Send(unsigned char * Data, int32 Size)
 {
 	if (Transport == nullptr) return 0;
 	BinaryWriter Writer;
-	Writer.WriteLong(0);
+	Writer.WriteLong(0); //auth key id = 0 since we sending plain text message
 	Writer.WriteLong(GetNewMessageID()); //long
 	Writer.WriteInt(Size);
 	Writer.Write(Data, Size);

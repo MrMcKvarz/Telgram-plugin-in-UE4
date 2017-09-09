@@ -58,13 +58,12 @@ int64 Crypto::SmallMultiplier(int64 pq)
 
 unsigned long long Crypto::GCD(unsigned long long a, unsigned long long b)
 {
+	/*Greatest common deviser*/
 	return b ? GCD(b, a % b) : a;
-
 }
 
 void Crypto::Factorize(long long *pq, long long *p, long long *q)
 {
-// 	Should work in any case
 	unsigned long long what = *pq;
 
 	int it = 0;
@@ -111,12 +110,9 @@ void Crypto::Factorize(long long *pq, long long *p, long long *q)
 		unsigned long long t = p1; p1 = p2; p2 = t;
 	}
 
-
-
 	*p = p1;
 	*q = p2;
 	return;
-	//return Crypto::SmallMultiplier(pq);
 }
 
 int64 Crypto::GetRandomLong()

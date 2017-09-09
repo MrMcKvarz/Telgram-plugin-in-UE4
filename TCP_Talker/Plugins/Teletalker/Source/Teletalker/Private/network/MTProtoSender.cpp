@@ -22,8 +22,6 @@ int32 MTProtoSender::Send(unsigned char * Data, int32 Size)
 {
 	if (Transport == nullptr) return 0;
 	return SendPacket(Data, Size);
-
-	//return Transport->Send(Packet.GetData(), Writer.GetWrittenBytesCount());
 }
 
 TArray<unsigned char> MTProtoSender::Receive(int32 Size)
@@ -40,6 +38,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	PlainWriter.WriteLong(MTSession->GetSalt());
 	PlainWriter.WriteLong(MTSession->GetID());
 	PlainWriter.WriteLong(GetNewMessageID());
+	Sequence;
 	PlainWriter.WriteInt(Sequence++);
 	PlainWriter.WriteInt(Size);
 	PlainWriter.Write(Data, Size);
@@ -47,7 +46,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	TArray<unsigned char> MessageKey = CalculateMessageKey(PlainWriter.GetBytes().GetData(), PlainWriter.GetWrittenBytesCount());
 
 	TArray<unsigned char> Key, IV;
-	Crypto::CalculateKey(MTSession->GetAuthKey(), MessageKey, Key, IV);
+	Crypto::CalculateKey(MTSession->GetAuthKey(), MessageKey,/*out*/ Key,/*out*/ IV);
 	
 	AES_KEY EncryptAESKey;
 	if ((AES_set_encrypt_key(Key.GetData(), 256, &EncryptAESKey) != 0))
@@ -57,10 +56,10 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	if (PlainWriter.GetWrittenBytesCount() % 16 != 0)
 	{
 		DHEncDataPadding = 16 - (PlainWriter.GetWrittenBytesCount() % 16);
-		PlainWriter.Write(Data, DHEncDataPadding);
+		PlainWriter.Write(Data, DHEncDataPadding); //write padding bytes
 	}
 
-	unsigned char CipherText[256];
+	unsigned char CipherText[2048];
 	AES_ige_encrypt((unsigned char *)PlainWriter.GetBytes().GetData(), CipherText, PlainWriter.GetWrittenBytesCount(), &EncryptAESKey, IV.GetData(), AES_ENCRYPT);
 
 	unsigned char AuthSHA[20];
@@ -73,18 +72,19 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	BinaryWriter CipherWriter;
 	CipherWriter.WriteLong(Key_ID);
 	CipherWriter.Write(MessageKey.GetData(), MessageKey.Num());
-	CipherWriter.Write(CipherText, 256);
+	CipherWriter.Write(CipherText, PlainWriter.GetWrittenBytesCount());
 	return Transport->Send(CipherWriter.GetBytes().GetData(), CipherWriter.GetWrittenBytesCount());
 }
 
 TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
 {
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
+	return TArray<unsigned char>();
 }
 
 TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message)
 {
-
+	return TArray<unsigned char>();
 }
 
 TArray<unsigned char> MTProtoSender::CalculateMessageKey(unsigned char * Data, int32 Size)

@@ -31,7 +31,7 @@ int BinaryReader::ReadInt()
 	if (Offset < Size)
 	{
 		unsigned char * bits = (unsigned char *) Buff.GetData();
-
+		/*read little endian*/
 		for (int n = 3 + Offset; n >= 0 + Offset; n--)
 			result = (result << 8) + bits[n];
 		Offset += 4;
@@ -45,7 +45,7 @@ signed long long BinaryReader::ReadLong()
 	if (Offset < Size)
 	{
 		unsigned char * bits = (unsigned char *)Buff.GetData();
-
+		/*read little endian*/
 		for (int n = 7 + Offset; n >= 0 + Offset; n--)
 			result = (result << 8) + bits[n];
 		Offset += 8;

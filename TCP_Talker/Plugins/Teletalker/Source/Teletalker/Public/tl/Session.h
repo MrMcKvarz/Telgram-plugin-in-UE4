@@ -1,6 +1,8 @@
 #pragma once
 #include "Engine.h"
 
+using namespace std;
+
 class Session
 {
 	FString ServerAddress;
@@ -23,6 +25,7 @@ class Session
 public:
 	Session(FString SessionUserdID);
 	bool Save();
+	bool Load();
 	bool Delete();
 
 	FString GetServerAddress() { return ServerAddress; }

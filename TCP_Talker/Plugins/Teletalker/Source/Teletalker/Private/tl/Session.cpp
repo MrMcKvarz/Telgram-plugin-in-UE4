@@ -2,7 +2,7 @@
 #include <windows.h>
 #include "Engine.h"
 #include "crypto/Crypto.h"
-
+#include "extensions/BinaryWriter.h"
 
 FString GetOSName()
 {
@@ -57,10 +57,12 @@ Session::Session(FString SessionUserdID)
 
 bool Session::Save()
 {
-
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+
+	BinaryWriter IDWriter;
+	IDWriter.WriteLong(ID);
 	
-	JsonObject->SetStringField("ID",FString::SanitizeFloat(ID));
+	JsonObject->SetStringField("ID",FString::FromBlob(IDWriter.GetBytes().GetData(),IDWriter.GetWrittenBytesCount()));
 	JsonObject->SetNumberField("Port", Port);
 	JsonObject->SetNumberField("Salt", Salt);
 	JsonObject->SetNumberField("Sequence", Sequence);
@@ -70,7 +72,8 @@ bool Session::Save()
 
 	FString FileName;
 
-	FileName += FPaths::GameContentDir();
+	FileName += FPaths::GamePluginsDir();
+	
 	FileName += UserID;
 	FileName += ".session";
 
@@ -80,6 +83,11 @@ bool Session::Save()
 
 	return FFileHelper::SaveStringToFile(OutputString, FileName.GetCharArray().GetData());
 
+}
+
+bool Session::Load()
+{
+	return true;
 }
 
 bool Session::Delete()

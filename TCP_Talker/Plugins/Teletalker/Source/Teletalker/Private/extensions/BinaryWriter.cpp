@@ -42,7 +42,6 @@ bool BinaryWriter::WriteBigInt(int32 Value)
 bool BinaryWriter::WriteLong(long long Value)
 {
 	unsigned char * CValue = (unsigned char *)(&Value);
-	//ReverseByteOrder(CValue, sizeof(Value));
 	for (int32 i = 0; i < sizeof(Value); i++)
 	{
 		Buff.Push(CValue[i]);
@@ -118,16 +117,8 @@ bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 
 bool BinaryWriter::TGWriteString(FString Value)
 {
-	//uint8 Buffer[2048];
-
-	
-
-// 	if (FString::ToHexBlob(Value, Buffer, Value.Len()))
-// 	{
-		auto UTF8Value = TCHAR_TO_UTF8(*Value);
-		return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
-	//}
-	//return false;
+	auto UTF8Value = TCHAR_TO_UTF8(*Value);
+	return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
 }
 
 TArray<unsigned char> BinaryWriter::GetBytes(bool Flush /*= true*/)
@@ -138,7 +129,7 @@ TArray<unsigned char> BinaryWriter::GetBytes(bool Flush /*= true*/)
 TArray<unsigned char> BinaryWriter::GetBigBytes(bool Flush /*= true*/)
 {
 	TArray<unsigned char> Temp;
-	
+	/*get reverse byte order from what we store*/
 	for (int32 i = 0; i < Buff.Num(); i++)
 		Temp.Add(Buff[Buff.Num() - i - 1]);
 	return Temp;

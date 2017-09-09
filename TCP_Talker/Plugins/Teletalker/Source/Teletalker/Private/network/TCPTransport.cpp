@@ -44,11 +44,12 @@ int32 TCPTransport::Send(unsigned char * Packet, int32 Size)
 {
 	if (!Client->IsConnected()) return false;
 	BinaryWriter Writer;
-	Writer.WriteInt(Size + 12);
-	Writer.WriteInt(SendCounter++);
-	Writer.Write(Packet, Size);
+	/*Following TCP protocol*/
+	Writer.WriteInt(Size + 12); //message length
+	Writer.WriteInt(SendCounter++); //send number
+	Writer.Write(Packet, Size); //packet
 	uint32 Hash = GetCrc(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
-	Writer.WriteInt(Hash);
+	Writer.WriteInt(Hash); //crc32 hash
 	int32 BytesSent = Client->Write(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
 	return BytesSent;
 }
@@ -71,7 +72,7 @@ TArray<unsigned char> TCPTransport::Receive()
 	Writer.WriteInt(SendCounter);
 	Writer.Write(Packet.GetData(), Packet.Num());
 	uint32 CRC = GetCrc(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
-	if(Hash != CRC) // this should do smth 
+	if(Hash != CRC) // this should do smth reasonable
 		UE_LOG(LogTemp, Error, TEXT("Hash tcp error"));
 	return Packet;
 	
