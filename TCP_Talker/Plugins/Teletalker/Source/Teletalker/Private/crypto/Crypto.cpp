@@ -127,7 +127,7 @@ int64 Crypto::GetRandomLong()
 	
 }
 
-void Crypto::CalculateKey(TArray<unsigned char> SharedKey, TArray<unsigned char> MessageKey, TArray<unsigned char> &Key, TArray<unsigned char> &IV)
+void Crypto::CalculateKey(TArray<unsigned char> SharedKey, TArray<unsigned char> MessageKey, TArray<unsigned char> &Key, TArray<unsigned char> &IV, bool isClient)
 {
 	/*https://core.telegram.org/api/end-to-end#serialization-and-encryption-of-outgoing-messages*/
 // 		sha1a = sha1(msg_key + shared_key[x:x + 32]).digest()
@@ -140,29 +140,31 @@ void Crypto::CalculateKey(TArray<unsigned char> SharedKey, TArray<unsigned char>
 // 		key = sha1a[0:8] + sha1b[8:20] + sha1c[4:16]
 // 		iv = sha1a[8:20] + sha1b[0:8] + sha1c[16:20] + sha1d[0:8]
 
-	int32 x = 0; // prob need for non client message
+	int32 x ; // prob need for non client message
+	if (isClient) x = 0;
+	else x = 8;
 	unsigned char sha1a[20], sha1b[20], sha1c[20], sha1d[20];
 	TArray<unsigned char> SHA1A_Array, SHA1B_Array, SHA1C_Array, SHA1D_Array;
 
 	SHA1A_Array += MessageKey;
-	for (int32 i = 0; i < 32; i++)
+	for (int32 i = x; i < x + 32; i++)
 		SHA1A_Array.Add(SharedKey[i]);
 	SHA1(SHA1A_Array.GetData(), SHA1A_Array.Num(), sha1a);
 
-	for (int32 i = 32; i < 48; i++)
+	for (int32 i = x + 32; i < x + 48; i++)
 		SHA1B_Array.Add(SharedKey[i]);
 	SHA1B_Array += MessageKey;
-	for (int32 i = 48; i < 64; i++)
+	for (int32 i = x + 48; i < x + 64; i++)
 		SHA1B_Array.Add(SharedKey[i]);
 	SHA1(SHA1B_Array.GetData(), SHA1B_Array.Num(), sha1b);
 
-	for (int32 i = 64; i < 96; i++)
+	for (int32 i = x + 64; i < x + 96; i++)
 		SHA1C_Array.Add(SharedKey[i]);
 	SHA1C_Array += MessageKey;
 	SHA1(SHA1C_Array.GetData(), SHA1C_Array.Num(), sha1c);
 
 	SHA1D_Array += MessageKey;
-	for (int32 i = 96; i < 128; i++)
+	for (int32 i = x + 96; i < x + 128; i++)
 		SHA1D_Array.Add(SharedKey[i]);
 	SHA1(SHA1D_Array.GetData(), SHA1D_Array.Num(), sha1d);
 

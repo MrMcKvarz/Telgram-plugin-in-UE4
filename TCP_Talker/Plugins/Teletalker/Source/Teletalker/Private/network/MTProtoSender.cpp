@@ -28,7 +28,8 @@ TArray<unsigned char> MTProtoSender::Receive()
 {
 	if (Transport == nullptr) return TArray<unsigned char>();
 	auto Response = Transport->Receive();
-	return ProcessMessage(DecodeMessage(Response));
+	auto Decoded = DecodeMessage(Response);
+	return ProcessMessage(Decoded);
 }
 
 int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
@@ -45,7 +46,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	TArray<unsigned char> MessageKey = CalculateMessageKey(PlainWriter.GetBytes().GetData(), PlainWriter.GetWrittenBytesCount());
 
 	TArray<unsigned char> Key, IV;
-	Crypto::CalculateKey(MTSession->GetAuthKey().GetKey(), MessageKey,/*out*/ Key,/*out*/ IV);
+	Crypto::CalculateKey(MTSession->GetAuthKey().GetKey(), MessageKey,/*out*/ Key,/*out*/ IV, true);
 	
 	AES_KEY EncryptAESKey;
 	if ((AES_set_encrypt_key(Key.GetData(), 256, &EncryptAESKey) != 0))
@@ -99,16 +100,19 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	unsigned long long RemoteAuthID = Reader.ReadLong();
+	if(RemoteAuthID != MTSession->GetAuthKey().GetKeyID())
+		UE_LOG(LogTemp, Error, TEXT("Auth id from server is invalid"));
 	TArray<unsigned char> RemoteMessageKey = Reader.Read(16);
 
 	TArray<unsigned char> Key, IV;
-	Crypto::CalculateKey(MTSession->GetAuthKey().GetKey(), RemoteMessageKey,/*out*/ Key,/*out*/ IV);
+	Crypto::CalculateKey(MTSession->GetAuthKey().GetKey(), RemoteMessageKey,/*out*/ Key,/*out*/ IV, false);
 
 	AES_KEY DecryptAESKey;
 	if ((AES_set_decrypt_key(Key.GetData(), 256, &DecryptAESKey) != 0))
-		UE_LOG(LogTemp, Error, TEXT("Failed creating dectypt key"));
+		UE_LOG(LogTemp, Error, TEXT("Failed creating decrypt key"));
 
 	int32 PlainMessageLength = Reader.GetBytes().Num() - Reader.GetOffset();
+	//const size_t encslength = ((PlainMessageLength + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
 
 	unsigned char PlainText[2048];
 	AES_ige_encrypt((unsigned char *)Reader.Read(PlainMessageLength).GetData(), PlainText, PlainMessageLength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
