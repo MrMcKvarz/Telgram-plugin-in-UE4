@@ -4,6 +4,7 @@
 #include "extensions/BinaryWriter.h"
 #include <bitset>
 #include "crypto/Crypto.h"
+#include "crypto/AuthKey.h"
 
 #include "Networking.h"
 
@@ -68,7 +69,7 @@ bool Prime(unsigned long a)
 	return true;
 }
 
-TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
+AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 {
 	MTProtoPlainSender Sender(Transport);
 	Sender.Connect();
@@ -149,13 +150,13 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	BIGNUM * message = BN_new();
 	BIGNUM * encrypted = BN_new();
 	/*Telegram public key in hex form*/
-	char * TelegramPublicModulus = "C150023E2F70DB7985DED064759CFECF0AF328E69A41DAF4D6F01B538135A6F91F8F8B2A0EC9BA9720CE352EFCF6C5680FFC424BD634864902DE0B4BD6D49F4E580230E3AE97D95C8B19442B3C0A10D8F5633FECEDD6926A7F6DAB0DDB7D457F9EA81B8465FCD6FFFEED114011DF91C059CAEDAF97625F6C96ECC74725556934EF781D866B34F011FCE4D835A090196E9A5F0E4449AF7EB697DDB9076494CA5F81104A305B6DD27665722C46B60E5DF680FB16B210607EF217652E60236C255F6A28315F4083A96791D7214BF64C1DF4FD0DB1944FB26A2A57031B32EEE64AD15A8BA68885CDE74A5BFC920F6ABF59BA5C75506373E7130F9042DA922179251F";
+	char * TelegramPublicKey = "C150023E2F70DB7985DED064759CFECF0AF328E69A41DAF4D6F01B538135A6F91F8F8B2A0EC9BA9720CE352EFCF6C5680FFC424BD634864902DE0B4BD6D49F4E580230E3AE97D95C8B19442B3C0A10D8F5633FECEDD6926A7F6DAB0DDB7D457F9EA81B8465FCD6FFFEED114011DF91C059CAEDAF97625F6C96ECC74725556934EF781D866B34F011FCE4D835A090196E9A5F0E4449AF7EB697DDB9076494CA5F81104A305B6DD27665722C46B60E5DF680FB16B210607EF217652E60236C255F6A28315F4083A96791D7214BF64C1DF4FD0DB1944FB26A2A57031B32EEE64AD15A8BA68885CDE74A5BFC920F6ABF59BA5C75506373E7130F9042DA922179251F";
 	char * PublicExponent = "10001";
 	BN_CTX * BNCTX = BN_CTX_new();
 
 	BN_bin2bn(EncDataWriter.GetBytes().GetData(), 255, message);
 	BN_hex2bn(&power, PublicExponent);
-	BN_hex2bn(&modulus, TelegramPublicModulus);
+	BN_hex2bn(&modulus, TelegramPublicKey);
 	rsaPubKey->n = modulus;
 	rsaPubKey->e = power;
 	/*RSA is basically r=a^p % m, where a - our message, p - public exponent, m - public key, and r - resulting encrypted message*/
@@ -240,7 +241,7 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 	BN_CTX * BNCTXGABDH = BN_CTX_new();
 
 	int32 IsGBDH = BN_mod_exp(gb, g, b, dh_prime, BNCTXGBDH);
-	int32 IsGABDH = BN_mod_exp(gab, ga, b, dh_prime, BNCTXGABDH); //calulating auth key
+	int32 IsGABDH = BN_mod_exp(gab, ga, b, dh_prime, BNCTXGABDH); //calculating auth key
 	unsigned char gbBytes[256];
 	if(!BN_bn2bin(gb, gbBytes))
 		UE_LOG(LogTemp, Error, TEXT("Failed BIGNUM conversion"));
@@ -297,15 +298,13 @@ TArray<unsigned char> Authenticator::Authenticate(TCPTransport * Transport)
 		UE_LOG(LogTemp, Error, TEXT("ServeNonce failed"));
 	auto NewNonceHash1 = DHCompleteReader.Read(16);
 
-	TArray<unsigned char> AuthKey;
-	AuthKey.Reserve(256);
-	for (int32 i = 0; i < 256; i++)
-		AuthKey.Add(gabBytes[i]);
-	auto NewNonceHashCheck = GetNewNonceHash1(AuthKey, NewNonce);
+	AuthKey NewKey(gabBytes);
+
+	auto NewNonceHashCheck = NewKey.CalculateNewNonceHash(NewNonce, 1);
 	if(NewNonceHash1 != NewNonceHashCheck)
 		UE_LOG(LogTemp, Error, TEXT("NewNonce hash check failed"));
 
-	return AuthKey;
+	return NewKey;
 }
 
 void Authenticator::GenerateKeyDataFromNonce(TArray<unsigned char> NewNonce, TArray<unsigned char> ServerNonce, TArray<unsigned char> &Key, TArray<unsigned char> &IV)
@@ -339,29 +338,5 @@ void Authenticator::GenerateKeyDataFromNonce(TArray<unsigned char> NewNonce, TAr
 	for (int32 i = 0; i < 4; i++)
 		IV.Add(NewNonce[i]);
 	return;
-}
-
-TArray<unsigned char> Authenticator::GetNewNonceHash1(TArray<unsigned char> AuthKey, TArray<unsigned char> NewNonce)
-{
-	unsigned char AuthSHA[20];
-	SHA1(AuthKey.GetData(), AuthKey.Num(), AuthSHA);
-	BinaryReader Reader(AuthSHA, 20);
-	unsigned long long Aux_Hash = Reader.ReadLong();
-	Reader.Read(4);
-	unsigned long long Key_ID = Reader.ReadLong();
-	
-	BinaryWriter Writer;
-	Writer.Write(NewNonce.GetData(), NewNonce.Num());
-	int32 Number = 1;
-	unsigned char * CNum = (unsigned char *)(&Number);
-	Writer.WriteByte(CNum);
-	Writer.WriteLong(Aux_Hash);
-	unsigned char NewNonceSHA[20];
-	SHA1(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount(), NewNonceSHA);
-	TArray<unsigned char> NewNonceHash1;
-	NewNonceHash1.Reserve(20);
-	for (int32 i = 4; i < 20; i++)
-		NewNonceHash1.Add(NewNonceSHA[i]);
-	return NewNonceHash1;
 }
 

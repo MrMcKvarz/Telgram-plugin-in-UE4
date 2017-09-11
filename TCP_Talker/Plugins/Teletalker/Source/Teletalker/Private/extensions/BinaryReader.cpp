@@ -73,6 +73,11 @@ void BinaryReader::Close()
 
 }
 
+int32 BinaryReader::GetOffset()
+{
+	return Offset;
+}
+
 TArray<unsigned char> BinaryReader::GetBytes(bool Flush /*= true*/)
 {
 	return Buff;

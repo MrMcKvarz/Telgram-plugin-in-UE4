@@ -46,9 +46,8 @@ Session::Session(FString SessionUserdID)
 	SystemLangCode = LangCode;
 	LangPack = "";
 
-	ServerAddress = "149. 154. 167. 40";
+	ServerAddress = "91. 108. 56. 165"; /*This is address of some data center of Telegram*/
 	Port = 443;
-	AuthKey.Empty();
 	ID = Crypto::GetRandomLong();
 	Sequence = 0;
 	Salt = 0;
@@ -67,7 +66,7 @@ bool Session::Save()
 	JsonObject->SetNumberField("Salt", Salt);
 	JsonObject->SetNumberField("Sequence", Sequence);
 	JsonObject->SetStringField("ServerAddress", ServerAddress);
-	FString AuthKeyString = FString::FromHexBlob(AuthKey.GetData(), AuthKey.Num());
+	FString AuthKeyString = FString::FromHexBlob(SessionAuthKey.GetKey().GetData(), SessionAuthKey.GetKey().Num());
 	JsonObject->SetStringField("AuthKeyData", AuthKeyString);
 
 	FString FileName;

@@ -15,6 +15,7 @@ public:
 	signed long long ReadLong();
 	TArray<unsigned char> Read(int Size);
 	void Close();
+	int32 GetOffset();
 	TArray<unsigned char> GetBytes(bool Flush = true);
 	TArray<unsigned char> TGReadBytes();
 };

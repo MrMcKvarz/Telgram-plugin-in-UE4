@@ -3,6 +3,7 @@
 
 class Session;
 
+
 class TelegramClient
 {
 	Session * ClientSession;
@@ -10,5 +11,5 @@ class TelegramClient
 	FString API_Hash;
 public:
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
-	bool Connect(FString AuthKey = "");
+	bool Connect();
 };

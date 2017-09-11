@@ -151,7 +151,7 @@ void Crypto::CalculateKey(TArray<unsigned char> SharedKey, TArray<unsigned char>
 
 	for (int32 i = 32; i < 48; i++)
 		SHA1B_Array.Add(SharedKey[i]);
-	SharedKey += MessageKey;
+	SHA1B_Array += MessageKey;
 	for (int32 i = 48; i < 64; i++)
 		SHA1B_Array.Add(SharedKey[i]);
 	SHA1(SHA1B_Array.GetData(), SHA1B_Array.Num(), sha1b);

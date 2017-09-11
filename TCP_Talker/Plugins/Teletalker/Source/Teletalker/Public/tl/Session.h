@@ -1,13 +1,12 @@
 #pragma once
 #include "Engine.h"
-
-using namespace std;
+#include "AuthKey.h"
 
 class Session
 {
 	FString ServerAddress;
 	int32 Port;
-	TArray<unsigned char> AuthKey;
+	AuthKey SessionAuthKey;
 	unsigned long long ID;
 	int32 Sequence;
 	unsigned long long Salt;
@@ -31,8 +30,8 @@ public:
 	FString GetServerAddress() { return ServerAddress; }
 	void SetServerAddress(FString NewServerAddress) { if (!NewServerAddress.IsEmpty()) ServerAddress = NewServerAddress; }
 
-	TArray<unsigned char> GetAuthKey() { return AuthKey; }
-	void SetAuthKey(TArray<unsigned char> NewAuthKey) { AuthKey = NewAuthKey; }
+	AuthKey GetAuthKey() { return SessionAuthKey; }
+	void SetAuthKey(AuthKey NewAuthKey) { SessionAuthKey = NewAuthKey; }
 
 	int32 GetPort() { return Port; }
 	void SetPort(int32 NewPort) { if (NewPort > 0) Port = NewPort; }
