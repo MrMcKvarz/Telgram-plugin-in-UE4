@@ -11,15 +11,7 @@ THIRD_PARTY_INCLUDES_END
 AuthKey::AuthKey(unsigned char * Data)
 {
 	Key.Reserve(DEFAULT_KEY_SIZE);
-	for (int32 i = 0; i < DEFAULT_KEY_SIZE; i++)
-		Key.Add(Data[i]);
-
-	unsigned char KeySHA[20];
-	SHA1((unsigned char *)Key.GetData(), DEFAULT_KEY_SIZE, KeySHA);
-	BinaryReader Reader(KeySHA, 20);
-	AuxHash = Reader.ReadLong();
-	Reader.Read(4);
-	KeyID = Reader.ReadLong();
+	SetKey(Data);
 }
 
 AuthKey::AuthKey()
@@ -60,6 +52,19 @@ unsigned long long AuthKey::GetAuxHash()
 unsigned long long AuthKey::GetKeyID()
 {
 	return KeyID;
+}
+
+void AuthKey::SetKey(unsigned char * Data)
+{
+	for (int32 i = 0; i < DEFAULT_KEY_SIZE; i++)
+		Key.Add(Data[i]);
+
+	unsigned char KeySHA[20];
+	SHA1((unsigned char *)Key.GetData(), DEFAULT_KEY_SIZE, KeySHA);
+	BinaryReader Reader(KeySHA, 20);
+	AuxHash = Reader.ReadLong();
+	Reader.Read(4);
+	KeyID = Reader.ReadLong();
 }
 
 AuthKey& AuthKey::operator=(const AuthKey& Copy)

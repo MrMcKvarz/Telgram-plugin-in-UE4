@@ -71,24 +71,24 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
 {
-// 	BinaryReader MessageReader(Message.GetData(), Message.Num());
-// 	int32 Response = MessageReader.ReadInt();
-// 
-// 	if (Response == 0xedab447b)
-// 		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));
-// 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
-// 		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
-// 	if (Response == 0x347773c5)  // pong
-// 		UE_LOG(LogTemp, Warning, TEXT("pong"));
-// 	if (Response == 0x73f1f8dc)  // msg_container
-// 		UE_LOG(LogTemp, Warning, TEXT("msg container"));
-// 	if (Response == 0x3072cfa1)  // gzip_packed
-// 		UE_LOG(LogTemp, Warning, TEXT("gzip packed"));
-// 	if (Response == 0xa7eff811)  // bad_msg_notification
-// 		UE_LOG(LogTemp, Warning, TEXT("Bad msg notify"));
-// 	// msgs_ack, it may handle the request we wanted
-// 	if (Response == 0x62d6b459)
-// 		UE_LOG(LogTemp, Warning, TEXT("Bad msg ack"));
+	BinaryReader MessageReader(Message.GetData(), Message.Num());
+	int32 Response = MessageReader.ReadInt();
+
+	if (Response == 0xedab447b) // bad server salt
+		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));
+	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
+		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
+	if (Response == 0x347773c5)  // pong
+		UE_LOG(LogTemp, Warning, TEXT("pong"));
+	if (Response == 0x73f1f8dc)  // msg_container
+		UE_LOG(LogTemp, Warning, TEXT("msg container"));
+	if (Response == 0x3072cfa1)  // gzip_packed
+		UE_LOG(LogTemp, Warning, TEXT("gzip packed"));
+	if (Response == 0xa7eff811)  // bad_msg_notification
+		UE_LOG(LogTemp, Warning, TEXT("Bad msg notify"));
+	// msgs_ack, it may handle the request we wanted
+	if (Response == 0x62d6b459)
+		UE_LOG(LogTemp, Warning, TEXT("Bad msg ack"));
 
 	return TArray<unsigned char>();
 }
@@ -112,7 +112,6 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 		UE_LOG(LogTemp, Error, TEXT("Failed creating decrypt key"));
 
 	int32 PlainMessageLength = Reader.GetBytes().Num() - Reader.GetOffset();
-	//const size_t encslength = ((PlainMessageLength + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
 
 	unsigned char PlainText[2048];
 	AES_ige_encrypt((unsigned char *)Reader.Read(PlainMessageLength).GetData(), PlainText, PlainMessageLength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
@@ -123,7 +122,31 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	unsigned long long RemoteMessageID = PlainReader.ReadLong();
 	uint32 RemoteSequence = PlainReader.ReadInt();
 	uint32 MessageLength = PlainReader.ReadInt();
-	//auto RemoteMessage = PlainReader.Read(MessageLength);
+	auto RemoteMessage = PlainReader.Read(MessageLength);
+
+	return RemoteMessage;
+}
+
+TArray<unsigned char> MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
+{
+// 	reader.read_int(signed = False)  # code
+// 		bad_msg_id = reader.read_long()
+// 		reader.read_int()  # bad_msg_seq_no
+// 		reader.read_int()  # error_code
+// 		new_salt = reader.read_long(signed = False)
+// 		self.session.salt = new_salt
+// 
+// 		try :
+// 		request = next(r for r in self._pending_receive
+// 			if r.request_msg_id == bad_msg_id)
+// 
+// 		self.send(request)
+	BinaryReader Reader(Message.GetData(), Message.Num());
+	unsigned long long BadMessageID = Reader.ReadLong();
+	Reader.ReadInt(); // bad message sequence number
+	Reader.ReadInt(); // error code
+	unsigned long long NewSalt = Reader.ReadLong();
+	MTSession->SetSalt(NewSalt);
 
 	return TArray<unsigned char>();
 }

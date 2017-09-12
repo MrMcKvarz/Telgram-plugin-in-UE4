@@ -20,13 +20,16 @@ class Session
 	FString LangPack;
 
 	FString UserID;
-
+	FString SessionFilePath;
 public:
 	Session(FString SessionUserdID);
 	bool Save();
 	bool Load();
 	bool Delete();
+	
 
+
+	/*get/set area*/
 	FString GetServerAddress() { return ServerAddress; }
 	void SetServerAddress(FString NewServerAddress) { if (!NewServerAddress.IsEmpty()) ServerAddress = NewServerAddress; }
 

@@ -28,6 +28,9 @@ bool TCPClient::Connect(FIPv4Address IP, int32 Port, int32 Timeout /*= 5*/)
 
 void TCPClient::Close()
 {
+	/*Once you invoke this you cannot reconnect*/
+	/*This is FSocket issue, it can't handle its own state*/
+	/*https://answers.unrealengine.com/questions/451319/4125-fsocketgetconnectionstate-returns-incorrect-v.html */
 	Socket->Close();
 }
 

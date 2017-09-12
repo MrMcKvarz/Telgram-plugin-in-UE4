@@ -3,6 +3,7 @@
 #include "Engine.h"
 #include "crypto/Crypto.h"
 #include "extensions/BinaryWriter.h"
+#include "extensions/BinaryReader.h"
 
 FString GetOSName()
 {
@@ -52,6 +53,7 @@ Session::Session(FString SessionUserdID)
 	Sequence = 0;
 	Salt = 0;
 	LastMsgID = 0;
+	SessionFilePath = FPaths::GamePluginsDir();
 }
 
 bool Session::Save()
@@ -59,8 +61,9 @@ bool Session::Save()
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 
 	BinaryWriter IDWriter;
-	IDWriter.WriteLong(ID);
-	
+	IDWriter.WriteLong(ID);	
+	/*This write string that itself is invalid, but contains right bytes, and we are able to load it correctly*/
+	/*this is actually not that bad, since it provide some kind of protection to session file*/
 	JsonObject->SetStringField("ID",FString::FromBlob(IDWriter.GetBytes().GetData(),IDWriter.GetWrittenBytesCount()));
 	JsonObject->SetNumberField("Port", Port);
 	JsonObject->SetNumberField("Salt", Salt);
@@ -70,9 +73,7 @@ bool Session::Save()
 	JsonObject->SetStringField("AuthKeyData", AuthKeyString);
 
 	FString FileName;
-
-	FileName += FPaths::GamePluginsDir();
-	
+	FileName += SessionFilePath;
 	FileName += UserID;
 	FileName += ".session";
 
@@ -81,12 +82,37 @@ bool Session::Save()
 	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
 
 	return FFileHelper::SaveStringToFile(OutputString, FileName.GetCharArray().GetData());
-
 }
 
 bool Session::Load()
 {
-	return true;
+
+	FString JsonString;
+	FString FilePath = SessionFilePath + UserID + ".session";
+	if(!FFileHelper::LoadFileToString(JsonString, *FilePath)) return false;
+
+	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+
+	if (FJsonSerializer::Deserialize(Reader, JsonObject))
+	{
+		FString IDString = JsonObject->GetStringField(TEXT("ID"));
+		uint8 IDBuffer[2048];
+		FString::ToBlob(IDString, IDBuffer, IDString.Len());
+		ID = BinaryReader(IDBuffer, IDString.Len()).ReadLong();
+
+		Port = JsonObject->GetNumberField(TEXT("Port"));
+		Salt = JsonObject->GetNumberField(TEXT("Salt"));
+		Sequence = JsonObject->GetNumberField(TEXT("Sequence"));
+		ServerAddress = JsonObject->GetStringField(TEXT("ServerAddress"));
+		FString AuthKeyString = JsonObject->GetStringField(TEXT("AuthKeyData"));
+
+		uint8 AuthKeyBuffer[2048];
+		FString::ToHexBlob(AuthKeyString, AuthKeyBuffer, AuthKeyString.Len());
+		SessionAuthKey.SetKey(AuthKeyBuffer);
+		return true;
+	}
+	return false;
 }
 
 bool Session::Delete()

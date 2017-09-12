@@ -95,7 +95,7 @@ FReply FTeletalkerModule::ButtonClicked()
 {
 	const int32 API_ID = 122648;
 	const FString API_HASH = "6b5b14d9cdaac1a56e92868c841d7ec5";
-	TelegramClient Client("TeleTalkerSession", API_ID, API_HASH);
+	TelegramClient Client("Anonymous", API_ID, API_HASH);
 	Client.Connect();
 
 	return FReply::Handled();

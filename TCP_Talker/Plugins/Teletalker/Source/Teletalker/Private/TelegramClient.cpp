@@ -19,6 +19,7 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 	ClientSession = new Session(SessionName);
 	API_ID = API_id;
 	API_Hash = API_hash;
+	ClientSession->Load();	
 }
 
 bool TelegramClient::Connect()
@@ -27,15 +28,20 @@ bool TelegramClient::Connect()
 	FIPv4Address::Parse(ClientSession->GetServerAddress(), TelegramServer);
 
 	TCPTransport Transport(TelegramServer, ClientSession->GetPort());
-	//TCPTransport TransportNew(Transport);
-	AuthKey AuthKeyData = Authenticator::Authenticate(&Transport);
-	ClientSession->SetAuthKey(AuthKeyData);
-	//AuthKey = FString::FromBlob(AuthKeyData.GetData(), AuthKeyData.Num());
+	/*Connect here and close only when program is done*/
+	/*This is due to FSocket bug*/
+	Transport.Connect(); 
 
-// 	if (ClientSession->Save())
-// 		UE_LOG(LogTemp, Warning, TEXT("Session prob saved"));
+	if(ClientSession->GetAuthKey().GetKey().Num() == 0)
+	{
+		AuthKey AuthKeyData = Authenticator::Authenticate(&Transport);
+		ClientSession->SetAuthKey(AuthKeyData);
 
-/*This data is valid for request*/
+		if (ClientSession->Save())
+			UE_LOG(LogTemp, Warning, TEXT("Session prob saved"));
+	}
+
+	/*This data is valid for request*/
 	BinaryWriter InitConnection;
 	/*TL init with layer*/
 	InitConnection.WriteInt(0xda9b0d0d);
@@ -79,7 +85,7 @@ bool TelegramClient::Connect()
 
 	MTProtoSender Sender(&Transport, ClientSession);
 
- 	int32 InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
+	int32 InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
 	auto Recv = Sender.Receive();
 	BinaryReader NEwReader(Recv.GetData(), Recv.Num());
 	uint32 BadResponse = NEwReader.ReadInt();

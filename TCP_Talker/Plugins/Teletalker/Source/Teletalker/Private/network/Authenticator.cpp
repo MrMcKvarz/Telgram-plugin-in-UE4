@@ -71,8 +71,7 @@ bool Prime(unsigned long a)
 
 AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 {
-	MTProtoPlainSender Sender(Transport);
-	Sender.Connect();
+	MTProtoPlainSender Sender(Transport);//Transport is already connected
 
 	//Send scheme https://core.telegram.org/mtproto/samples-auth_key
 

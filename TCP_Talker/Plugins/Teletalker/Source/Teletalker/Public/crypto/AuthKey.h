@@ -14,6 +14,7 @@ public:
 	TArray<unsigned char> GetKey();
 	unsigned long long GetAuxHash();
 	unsigned long long GetKeyID();
+	void SetKey(unsigned char * Data);
 
 	AuthKey& operator=(const AuthKey& other);
 
