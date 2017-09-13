@@ -39,11 +39,17 @@ public:
 	int32 GetPort() { return Port; }
 	void SetPort(int32 NewPort) { if (NewPort > 0) Port = NewPort; }
 
-	unsigned long long GetSalt() { return Salt; }
-	void SetSalt(unsigned long long NewSalt) { if (NewSalt > 0) Salt = NewSalt; }
-
 	unsigned long long GetID() { return ID; }
 	void SetID(unsigned long long NewID) { if (NewID > 0) ID = NewID; }
+
+	int32 GetSequence() { return Sequence * 2; }
+	void SetSequence(int32 NewSequence) { if (NewSequence > 0) Sequence = NewSequence; }
+
+	int64 GetLastMsgID() { return LastMsgID; }
+	void SetLastMsgID(int64 NewLastMsgID) { if (NewLastMsgID > 0) LastMsgID = NewLastMsgID; }
+
+	unsigned long long GetSalt() { return Salt; }
+	void SetSalt(unsigned long long NewSalt) { if (NewSalt > 0) Salt = NewSalt; }
 
 	FString GetDeviceModel() { return DeviceModel; }
 	void SetDeviceModel(FString NewDeviceModel) { DeviceModel = NewDeviceModel; }

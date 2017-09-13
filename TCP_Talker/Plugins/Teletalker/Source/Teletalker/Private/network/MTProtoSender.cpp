@@ -21,15 +21,32 @@ MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
 int32 MTProtoSender::Send(unsigned char * Data, int32 Size)
 {
 	if (Transport == nullptr) return 0;
+	SendAcknowledges();
 	return SendPacket(Data, Size);
 }
 
 TArray<unsigned char> MTProtoSender::Receive()
 {
 	if (Transport == nullptr) return TArray<unsigned char>();
+
 	auto Response = Transport->Receive();
 	auto Decoded = DecodeMessage(Response);
 	return ProcessMessage(Decoded);
+}
+
+void MTProtoSender::SendAcknowledges()
+{
+	if (NeedConfirmation.Num() != 0)
+	{
+		BinaryWriter Writer;
+		Writer.WriteInt(0x62d6b459); // Message acknowledge constructor
+		Writer.WriteInt(0x1cb5c415); //Vector constructor
+		Writer.WriteInt(NeedConfirmation.Num());
+		for (auto Message : NeedConfirmation)
+			Writer.WriteLong(Message);
+		SendPacket(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
+		NeedConfirmation.Empty(1);
+	}
 }
 
 int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
@@ -39,7 +56,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	PlainWriter.WriteLong(MTSession->GetSalt());
 	PlainWriter.WriteLong(MTSession->GetID());
 	PlainWriter.WriteLong(GetNewMessageID());
-	PlainWriter.WriteInt(Sequence++);
+	PlainWriter.WriteInt(MTSession->GetSequence());
 	PlainWriter.WriteInt(Size);
 	PlainWriter.Write(Data, Size);
 
@@ -56,7 +73,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	if (PlainWriter.GetWrittenBytesCount() % 16 != 0)
 	{
 		DHEncDataPadding = 16 - (PlainWriter.GetWrittenBytesCount() % 16);
-		PlainWriter.Write(Data, DHEncDataPadding); //write padding bytes
+		PlainWriter.Write(Data, DHEncDataPadding); //writing random(from data) padding bytes
 	}
 
 	unsigned char CipherText[2048];
@@ -71,11 +88,15 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
 {
+	NeedConfirmation.Add(MTSession->GetLastMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
 	int32 Response = MessageReader.ReadInt();
 
 	if (Response == 0xedab447b) // bad server salt
+	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));
+		HandleBadServerSalt(Message);	
+	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
 		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
 	if (Response == 0x347773c5)  // pong
@@ -90,7 +111,7 @@ TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Messag
 	if (Response == 0x62d6b459)
 		UE_LOG(LogTemp, Warning, TEXT("Bad msg ack"));
 
-	return TArray<unsigned char>();
+	return Message;
 }
 
 TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message)
@@ -120,6 +141,7 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	PlainReader.ReadLong(); // remote salt
 	PlainReader.ReadLong(); // remote session id
 	unsigned long long RemoteMessageID = PlainReader.ReadLong();
+	MTSession->SetLastMsgID(RemoteMessageID);
 	uint32 RemoteSequence = PlainReader.ReadInt();
 	uint32 MessageLength = PlainReader.ReadInt();
 	auto RemoteMessage = PlainReader.Read(MessageLength);
@@ -127,7 +149,7 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	return RemoteMessage;
 }
 
-TArray<unsigned char> MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
+bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
 {
 // 	reader.read_int(signed = False)  # code
 // 		bad_msg_id = reader.read_long()
@@ -146,9 +168,9 @@ TArray<unsigned char> MTProtoSender::HandleBadServerSalt(TArray<unsigned char> M
 	Reader.ReadInt(); // bad message sequence number
 	Reader.ReadInt(); // error code
 	unsigned long long NewSalt = Reader.ReadLong();
-	MTSession->SetSalt(NewSalt);
-
-	return TArray<unsigned char>();
+ 	MTSession->SetSalt(NewSalt);
+	MTSession->Save();
+	return true;
 }
 
 TArray<unsigned char> MTProtoSender::CalculateMessageKey(unsigned char * Data, int32 Size)

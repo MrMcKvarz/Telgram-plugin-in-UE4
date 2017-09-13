@@ -66,7 +66,10 @@ bool Session::Save()
 	/*this is actually not that bad, since it provide some kind of protection to session file*/
 	JsonObject->SetStringField("ID",FString::FromBlob(IDWriter.GetBytes().GetData(),IDWriter.GetWrittenBytesCount()));
 	JsonObject->SetNumberField("Port", Port);
-	JsonObject->SetNumberField("Salt", Salt);
+
+	BinaryWriter SaltWriter;
+	SaltWriter.WriteLong(Salt);
+	JsonObject->SetStringField("Salt", FString::FromBlob(SaltWriter.GetBytes().GetData(), SaltWriter.GetWrittenBytesCount()));
 	JsonObject->SetNumberField("Sequence", Sequence);
 	JsonObject->SetStringField("ServerAddress", ServerAddress);
 	FString AuthKeyString = FString::FromHexBlob(SessionAuthKey.GetKey().GetData(), SessionAuthKey.GetKey().Num());
@@ -81,7 +84,7 @@ bool Session::Save()
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
 	FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
 
-	return FFileHelper::SaveStringToFile(OutputString, FileName.GetCharArray().GetData());
+	return FFileHelper::SaveStringToFile(OutputString, FileName.GetCharArray().GetData(), FFileHelper::EEncodingOptions::AutoDetect,&IFileManager::Get(),2);
 }
 
 bool Session::Load()
@@ -89,7 +92,7 @@ bool Session::Load()
 
 	FString JsonString;
 	FString FilePath = SessionFilePath + UserID + ".session";
-	if(!FFileHelper::LoadFileToString(JsonString, *FilePath)) return false;
+	if(!FFileHelper::LoadFileToString(JsonString, FilePath.GetCharArray().GetData())) return false;
 
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
@@ -102,7 +105,12 @@ bool Session::Load()
 		ID = BinaryReader(IDBuffer, IDString.Len()).ReadLong();
 
 		Port = JsonObject->GetNumberField(TEXT("Port"));
-		Salt = JsonObject->GetNumberField(TEXT("Salt"));
+
+		FString SaltString = JsonObject->GetStringField(TEXT("Salt"));
+		uint8 SaltBuffer[2048];
+		FString::ToBlob(SaltString, SaltBuffer, SaltString.Len());
+		Salt = BinaryReader(SaltBuffer, SaltString.Len()).ReadLong();
+
 		Sequence = JsonObject->GetNumberField(TEXT("Sequence"));
 		ServerAddress = JsonObject->GetStringField(TEXT("ServerAddress"));
 		FString AuthKeyString = JsonObject->GetStringField(TEXT("AuthKeyData"));
