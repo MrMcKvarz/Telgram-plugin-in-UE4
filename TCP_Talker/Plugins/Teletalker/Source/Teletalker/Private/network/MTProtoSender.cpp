@@ -9,6 +9,11 @@
 #include "extensions/BinaryReader.h"
 #include "crypto/Crypto.h"
 
+bool ContentRelated = false; // This should be in TL object
+bool IsMsgOk = true;
+unsigned char * MessageData;
+int32 MessageSize = 0;
+
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
 	: MTProtoPlainSender(Transport)
 {
@@ -22,30 +27,39 @@ int32 MTProtoSender::Send(unsigned char * Data, int32 Size)
 {
 	if (Transport == nullptr) return 0;
 	SendAcknowledges();
-	return SendPacket(Data, Size);
+	ContentRelated = true;
+	MessageData = Data;
+	MessageSize = Size;
+	uint32 BytesSent = SendPacket(Data, Size);
+	//ClientMessagesNeedAcknowledges.Add()
 }
 
 TArray<unsigned char> MTProtoSender::Receive()
 {
 	if (Transport == nullptr) return TArray<unsigned char>();
-
-	auto Response = Transport->Receive();
-	auto Decoded = DecodeMessage(Response);
-	return ProcessMessage(Decoded);
+	TArray<unsigned char> Received;
+	while(IsMsgOk)
+	{
+		auto Response = Transport->Receive();
+		auto Decoded = DecodeMessage(Response);
+		Received = ProcessMessage(Decoded);
+	}
+	return Received;
 }
 
 void MTProtoSender::SendAcknowledges()
 {
-	if (NeedConfirmation.Num() != 0)
+	if (ServerMessagesNeedAcknowledges.Num() != 0)
 	{
 		BinaryWriter Writer;
 		Writer.WriteInt(0x62d6b459); // Message acknowledge constructor
 		Writer.WriteInt(0x1cb5c415); //Vector constructor
-		Writer.WriteInt(NeedConfirmation.Num());
-		for (auto Message : NeedConfirmation)
+		Writer.WriteInt(ServerMessagesNeedAcknowledges.Num());
+		for (auto Message : ServerMessagesNeedAcknowledges)
 			Writer.WriteLong(Message);
+		ContentRelated = false;
 		SendPacket(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
-		NeedConfirmation.Empty(1);
+		ServerMessagesNeedAcknowledges.Empty(1);
 	}
 }
 
@@ -56,7 +70,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	PlainWriter.WriteLong(MTSession->GetSalt());
 	PlainWriter.WriteLong(MTSession->GetID());
 	PlainWriter.WriteLong(GetNewMessageID());
-	PlainWriter.WriteInt(MTSession->GetSequence());
+	PlainWriter.WriteInt(MTSession->GetSequence(ContentRelated));
 	PlainWriter.WriteInt(Size);
 	PlainWriter.Write(Data, Size);
 
@@ -88,14 +102,15 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
 {
-	NeedConfirmation.Add(MTSession->GetLastMsgID());
+	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
 	int32 Response = MessageReader.ReadInt();
 
 	if (Response == 0xedab447b) // bad server salt
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));
-		HandleBadServerSalt(Message);	
+		HandleBadServerSalt(Message);
+		return Message;
 	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
 		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
@@ -110,7 +125,25 @@ TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Messag
 	// msgs_ack, it may handle the request we wanted
 	if (Response == 0x62d6b459)
 		UE_LOG(LogTemp, Warning, TEXT("Bad msg ack"));
-
+	if (Response == 0x9ec20908)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Session created"));
+		return Message;
+	}
+// 	if code == 0x62d6b459:
+// 	ack = reader.tgread_object()
+// 		for r in self._pending_receive :
+// 			if r.request_msg_id in ack.msg_ids :
+// 				self._logger.debug('Ack found for the a request')
+// 
+// 				if self.logging_out :
+// 					self._logger.debug('Message ack confirmed a request')
+// 					r.confirm_received = True
+// 
+// 					return True
+	if (Response == 0x62d6b459)
+		0; 
+	IsMsgOk = false;
 	return Message;
 }
 
@@ -138,8 +171,8 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	AES_ige_encrypt((unsigned char *)Reader.Read(PlainMessageLength).GetData(), PlainText, PlainMessageLength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
 
 	BinaryReader PlainReader(PlainText, PlainMessageLength);
-	PlainReader.ReadLong(); // remote salt
-	PlainReader.ReadLong(); // remote session id
+	unsigned long long BadSalt = PlainReader.ReadLong(); // remote salt
+	unsigned long long RemoteSeesionID = PlainReader.ReadLong(); // remote session id
 	unsigned long long RemoteMessageID = PlainReader.ReadLong();
 	MTSession->SetLastMsgID(RemoteMessageID);
 	uint32 RemoteSequence = PlainReader.ReadInt();
@@ -164,12 +197,28 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
 // 
 // 		self.send(request)
 	BinaryReader Reader(Message.GetData(), Message.Num());
+	int32 Code = Reader.ReadInt();
 	unsigned long long BadMessageID = Reader.ReadLong();
-	Reader.ReadInt(); // bad message sequence number
-	Reader.ReadInt(); // error code
+	int32 BadSequence =	Reader.ReadInt(); // bad message sequence number
+	int32 ErrorCode = Reader.ReadInt(); // error code
 	unsigned long long NewSalt = Reader.ReadLong();
  	MTSession->SetSalt(NewSalt);
+	Send(MessageData, MessageSize);
 	MTSession->Save();
+	return true;
+}
+
+bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
+{
+	BinaryReader Reader(Message.GetData(), Message.Num());
+	uint32 Code = Reader.ReadInt();
+	uint32 Size = Reader.ReadInt();
+	for (int32 i = 0; i < Size; i++)
+	{
+		unsigned long long InnerMessageID = Reader.ReadLong();
+		Reader.ReadInt(); // inner sequence
+		uint32 InnerLength = Reader.ReadInt();
+	}
 	return true;
 }
 

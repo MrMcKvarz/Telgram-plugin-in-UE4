@@ -7,7 +7,8 @@ class TCPTransport;
 class MTProtoSender : MTProtoPlainSender
 {
 	Session * MTSession;
-	TSet<unsigned long long> NeedConfirmation;
+	TSet<unsigned long long> ServerMessagesNeedAcknowledges;
+	TSet<unsigned long long> ClientMessagesNeedAcknowledges;
 public:
 	MTProtoSender(TCPTransport * Transport, Session * NewSession);
 	int32 Send(unsigned char * Data, int32 Size); // TLObject
@@ -23,4 +24,5 @@ private:
 	TArray<unsigned char> ProcessMessage(TArray<unsigned char> Message);
 	TArray<unsigned char> DecodeMessage(TArray<unsigned char> Message);
 	bool HandleBadServerSalt(TArray<unsigned char> Message);
+	bool HandleMessageContainer(TArray<unsigned char> Message);
 };

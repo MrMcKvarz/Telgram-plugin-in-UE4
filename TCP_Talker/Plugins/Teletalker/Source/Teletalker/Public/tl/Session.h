@@ -42,7 +42,16 @@ public:
 	unsigned long long GetID() { return ID; }
 	void SetID(unsigned long long NewID) { if (NewID > 0) ID = NewID; }
 
-	int32 GetSequence() { return Sequence * 2; }
+	int32 GetSequence(bool IsContentRelated) 
+	{ 
+		if (IsContentRelated)
+		{
+			int32 Result = Sequence * 2 + 1;
+			Sequence++;
+			return Result;
+		}
+		return Sequence * 2; 
+	}
 	void SetSequence(int32 NewSequence) { if (NewSequence > 0) Sequence = NewSequence; }
 
 	int64 GetLastMsgID() { return LastMsgID; }

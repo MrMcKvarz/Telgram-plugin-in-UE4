@@ -45,7 +45,7 @@ bool TelegramClient::Connect()
 	BinaryWriter InitConnection;
 	/*TL init with layer*/
 	InitConnection.WriteInt(0xda9b0d0d);
-	InitConnection.WriteInt(70);
+	InitConnection.WriteInt(71);
 	/*TL init connection*/
 	InitConnection.WriteInt(0xc7481da6);
 	InitConnection.WriteInt(API_ID);
@@ -87,8 +87,8 @@ bool TelegramClient::Connect()
 
 	int32 InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
 	auto Recv = Sender.Receive();
-	InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
-	Recv = Sender.Receive();
+// 	InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
+// 	Recv = Sender.Receive();
 	BinaryReader NEwReader(Recv.GetData(), Recv.Num());
 	uint32 BadResponse = NEwReader.ReadInt();
 
