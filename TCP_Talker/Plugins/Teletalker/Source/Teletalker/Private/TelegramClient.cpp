@@ -4,8 +4,14 @@
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
 #include "MTProtoSender.h"
-#include "crypto/AuthKey.h"
+/*#include "crypto/AuthKey.h"*/
 
+/*TL objects*/
+//#include "../TL/AllObjects.h"
+#include "TL/Functions/HELP/Public/GetConfig.h"
+#include "TL/Functions/COMMON/Public/InitConnection.h"
+#include "TL/Functions/COMMON/Public/InvokeWithLayer.h"
+#include "TL/TL_Object.h"
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
 #include "tl/Session.h"
@@ -44,19 +50,28 @@ bool TelegramClient::Connect()
 	/*This data is valid for request*/
 	BinaryWriter InitConnection;
 	/*TL init with layer*/
-	InitConnection.WriteInt(0xda9b0d0d);
-	InitConnection.WriteInt(71);
+
+// 	InitConnection.WriteInt(0xda9b0d0d);
+// 	InitConnection.WriteInt(71);
 	/*TL init connection*/
-	InitConnection.WriteInt(0xc7481da6);
-	InitConnection.WriteInt(API_ID);
-	InitConnection.TGWriteString(ClientSession->GetDeviceModel());
-	InitConnection.TGWriteString(ClientSession->GetSystemVersion());
-	InitConnection.TGWriteString(ClientSession->GetAppVersion());
-	InitConnection.TGWriteString(ClientSession->GetSystemLangCode());
-	InitConnection.TGWriteString(ClientSession->GetLangPack());
-	InitConnection.TGWriteString(ClientSession->GetLangCode());
+
+// 	InitConnection.WriteInt(0xc7481da6);
+// 	InitConnection.WriteInt(API_ID);
+// 	InitConnection.TGWriteString(ClientSession->GetDeviceModel());
+// 	InitConnection.TGWriteString(ClientSession->GetSystemVersion());
+// 	InitConnection.TGWriteString(ClientSession->GetAppVersion());
+// 	InitConnection.TGWriteString(ClientSession->GetSystemLangCode());
+// 	InitConnection.TGWriteString(ClientSession->GetLangPack());
+// 	InitConnection.TGWriteString(ClientSession->GetLangCode());
 	/*TL get config*/
- 	InitConnection.WriteInt(0xc4f9186b); // get config request constructor
+	//InitConnection.WriteInt(0xc4f9186b); // get config request constructor
+
+	//TLObjAbstract Tset;
+	HELP::GetConfig ConfigRequest;
+	COMMON::InitConnection InitRequest(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
+		ClientSession->GetLangPack(), ClientSession->GetLangCode(), &ConfigRequest);
+	COMMON::InvokeWithLayer InvokeWithLayerRequest(71, &InitRequest);
+	InvokeWithLayerRequest.OnSend(InitConnection);
  
 // 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 	/*Python rsa encrypt test area*/

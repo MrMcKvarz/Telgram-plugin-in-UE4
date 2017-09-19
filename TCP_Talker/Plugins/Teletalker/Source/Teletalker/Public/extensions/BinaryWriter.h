@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine.h"
-
+#include "BigInt.h"
+class TLObjAbstract;
 class BinaryWriter
 {
 	const int32 DefaultSize = 2048;
@@ -23,6 +24,12 @@ public:
 	TArray<unsigned char> GetBytes(bool Flush = true);
 	TArray<unsigned char> GetBigBytes(bool Flush = true);
 	int32 GetWrittenBytesCount();
+	bool WriteBool(bool Value);
+	bool WriteDouble(double Value);
+	bool TGWriteDate(FDateTime Value);
+	bool Write128Int(TBigInt<128> Value);
+	bool Write256Int(TBigInt<256> Value);
+	bool TGWriteObject(TLObjAbstract* Value);
 
 	void ReverseByteOrder(char * Value, int32 Size);
 };

@@ -15,3 +15,13 @@ bool TLObject::NeedResend()
 {
 	return (Dirty || (ContentRetated && !ConfirmReceived && FDateTime::Now().GetSecond() - SentTime.GetSecond() > (FDateTime::Now().GetSecond() + 3)));
 }
+
+void TLObject::OnSend(BinaryWriter Writer)
+{
+
+}
+
+void TLObject::OnResponse(BinaryReader Reader)
+{
+
+}

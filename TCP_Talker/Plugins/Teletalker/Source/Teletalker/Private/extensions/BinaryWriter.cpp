@@ -1,5 +1,6 @@
 #include "extensions/BinaryWriter.h"
 #include <algorithm> 
+#include "../../TL/TLObject.h"
 BinaryWriter::BinaryWriter()
 {
 	Buff.Reserve(DefaultSize * 4);
@@ -140,6 +141,36 @@ int32 BinaryWriter::GetWrittenBytesCount()
 	return WrittenCount;
 } 
 
+
+bool BinaryWriter::WriteBool(bool Value)
+{
+	return true;
+}
+
+bool BinaryWriter::WriteDouble(double Value)
+{
+	return true;
+}
+
+bool BinaryWriter::TGWriteDate(FDateTime Value)
+{
+	return true;
+}
+
+bool BinaryWriter::Write128Int(TBigInt<128> Value)
+{
+	return true;
+}
+
+bool BinaryWriter::Write256Int(TBigInt<256> Value)
+{
+	return true;
+}
+
+bool BinaryWriter::TGWriteObject(TLObjAbstract* Value)
+{
+	return true;
+}
 
 void BinaryWriter::ReverseByteOrder(char * Value, int32 Size)
 {

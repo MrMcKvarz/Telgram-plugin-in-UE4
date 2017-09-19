@@ -46,9 +46,7 @@ public:
 	{ 
 		if (IsContentRelated)
 		{
-			int32 Result = Sequence * 2 + 1;
-			Sequence++;
-			return Result;
+			return Sequence++ * 2;
 		}
 		return Sequence * 2; 
 	}

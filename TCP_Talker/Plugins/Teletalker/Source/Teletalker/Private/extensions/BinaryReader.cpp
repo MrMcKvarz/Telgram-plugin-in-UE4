@@ -1,5 +1,5 @@
 #include "extensions/BinaryReader.h"
-
+#include "../../TL/TLObject.h"
 
 BinaryReader::BinaryReader(const unsigned char * Data, int Size)
 {
@@ -107,6 +107,49 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 		this->Read(padding);
 	}
 	return data;
+}
+
+TLObjAbstract* BinaryReader::TGReadObject()
+{
+	TLObjAbstract * Dafak = new TLObjAbstract();
+	return Dafak;
+}
+
+bool BinaryReader::TGReadBool()
+{
+	return true;
+}
+
+FString BinaryReader::TGReadString()
+{
+	return "";
+}
+
+bool BinaryReader::ReadBool()
+{
+	return true;
+}
+
+double BinaryReader::ReadDouble()
+{
+	return 0.;
+}
+
+FDateTime BinaryReader::TGReadDate()
+{
+	return FDateTime::Now();
+}
+
+TBigInt<128> BinaryReader::Read128Int()
+{
+	TBigInt<128> Test;
+	return Test;
+}
+
+TBigInt<256> BinaryReader::Read256Int()
+{
+	TBigInt<256> Test;
+	return Test;
 }
 
 // TArray<char> BinaryReader::GetBytes(bool Flush /*= true*/)

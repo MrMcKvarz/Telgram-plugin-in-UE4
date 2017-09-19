@@ -32,6 +32,7 @@ int32 MTProtoSender::Send(unsigned char * Data, int32 Size)
 	MessageSize = Size;
 	uint32 BytesSent = SendPacket(Data, Size);
 	//ClientMessagesNeedAcknowledges.Add()
+	return BytesSent;
 }
 
 TArray<unsigned char> MTProtoSender::Receive()
@@ -67,12 +68,16 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 {
 	BinaryWriter PlainWriter;
 
+	unsigned long long NewMessageID =  GetNewMessageID();
+
 	PlainWriter.WriteLong(MTSession->GetSalt());
 	PlainWriter.WriteLong(MTSession->GetID());
-	PlainWriter.WriteLong(GetNewMessageID());
+	PlainWriter.WriteLong(NewMessageID);
 	PlainWriter.WriteInt(MTSession->GetSequence(ContentRelated));
 	PlainWriter.WriteInt(Size);
 	PlainWriter.Write(Data, Size);
+	if (ContentRelated)
+		ClientMessagesNeedAcknowledges.Add(NewMessageID);
 
 	TArray<unsigned char> MessageKey = CalculateMessageKey(PlainWriter.GetBytes().GetData(), PlainWriter.GetWrittenBytesCount());
 
@@ -108,7 +113,8 @@ TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Messag
 
 	if (Response == 0xedab447b) // bad server salt
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));
+		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));	
+		ServerMessagesNeedAcknowledges.Remove(MTSession->GetLastMsgID());
 		HandleBadServerSalt(Message);
 		return Message;
 	}
@@ -137,7 +143,6 @@ TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Messag
 // 				self._logger.debug('Ack found for the a request')
 // 
 // 				if self.logging_out :
-// 					self._logger.debug('Message ack confirmed a request')
 // 					r.confirm_received = True
 // 
 // 					return True
@@ -203,7 +208,8 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
 	int32 ErrorCode = Reader.ReadInt(); // error code
 	unsigned long long NewSalt = Reader.ReadLong();
  	MTSession->SetSalt(NewSalt);
-	Send(MessageData, MessageSize);
+	if(ClientMessagesNeedAcknowledges.Contains(BadMessageID))
+		Send(MessageData, MessageSize);
 	MTSession->Save();
 	return true;
 }
@@ -213,7 +219,7 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	uint32 Code = Reader.ReadInt();
 	uint32 Size = Reader.ReadInt();
-	for (int32 i = 0; i < Size; i++)
+	for (uint32 i = 0; i < Size; i++)
 	{
 		unsigned long long InnerMessageID = Reader.ReadLong();
 		Reader.ReadInt(); // inner sequence

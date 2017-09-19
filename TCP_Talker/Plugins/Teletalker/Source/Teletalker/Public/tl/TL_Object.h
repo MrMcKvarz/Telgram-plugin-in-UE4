@@ -21,8 +21,8 @@ public:
 	void OnConfirm();
 	bool NeedResend();
 
-	virtual void OnSend(BinaryWriter Writer) = 0;
+	virtual void OnSend(BinaryWriter Writer);
 
-	virtual void OnResponse(BinaryReader Reader) = 0;
+	virtual void OnResponse(BinaryReader Reader);
 
 };

@@ -73,4 +73,6 @@ Source/*
 Plugins/Teletalker/Binaries/*
 Plugins/Teletalker/Intermediate/*
 Plugins/Teletalker/Resources/*
+Plugins/Teletalker/Source/Teletalker/TL/*
+*.session
 

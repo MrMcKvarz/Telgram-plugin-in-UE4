@@ -30,7 +30,7 @@ FString GetOSVersion()
 		OSVERSIONINFO osvi;
 		ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
 		osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-		GetVersionExW(&osvi);
+		GetVersionEx(&osvi);
 		return FString::FromInt(osvi.dwMajorVersion);
  	#else
  		return "1.0";
