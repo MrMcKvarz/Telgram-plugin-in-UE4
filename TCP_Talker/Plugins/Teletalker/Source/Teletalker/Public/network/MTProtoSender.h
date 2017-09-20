@@ -1,18 +1,20 @@
 #pragma once 
 #include "MTProtoPlainSender.h"
 
+
 class Session;
 class TCPTransport;
+class TLObject;
 
 class MTProtoSender : MTProtoPlainSender
 {
 	Session * MTSession;
-	TSet<unsigned long long> ServerMessagesNeedAcknowledges;
-	TSet<unsigned long long> ClientMessagesNeedAcknowledges;
+	TArray<unsigned long long> ServerMessagesNeedAcknowledges;
+	TArray<TLObject> ClientMessagesNeedAcknowledges;
 public:
 	MTProtoSender(TCPTransport * Transport, Session * NewSession);
-	int32 Send(unsigned char * Data, int32 Size); // TLObject
-	TArray<unsigned char> Receive();
+	int32 Send(TLObject &Message); // TLObject
+	TArray<unsigned char> Receive(TLObject &Message);
 
 
 	TArray<unsigned char> CalculateMessageKey(unsigned char * Data, int32 Size);
@@ -20,9 +22,9 @@ public:
 	bool Connect();
 private:
 	void SendAcknowledges();
-	int32 SendPacket(unsigned char * Data, int32 Size);
-	bool ProcessMessage(TArray<unsigned char> Message);
+	int32 SendPacket(TLObject &Message);
+	bool ProcessMessage(TArray<unsigned char> Message, TLObject &Request);
 	TArray<unsigned char> DecodeMessage(TArray<unsigned char> Message);
-	bool HandleBadServerSalt(TArray<unsigned char> Message);
+	bool HandleBadServerSalt(TArray<unsigned char> Message, TLObject &Request);
 	bool HandleMessageContainer(TArray<unsigned char> Message);
 };

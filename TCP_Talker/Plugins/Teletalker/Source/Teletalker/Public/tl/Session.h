@@ -7,9 +7,9 @@ class Session
 	FString ServerAddress;
 	int32 Port;
 	AuthKey SessionAuthKey;
-	unsigned long long ID;
+	uint64 ID;
 	int32 Sequence;
-	unsigned long long Salt;
+	uint64 Salt;
 	int64 LastMsgID;
 	
 	FString DeviceModel;

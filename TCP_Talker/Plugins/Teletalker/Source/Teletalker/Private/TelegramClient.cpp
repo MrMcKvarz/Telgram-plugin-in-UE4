@@ -11,7 +11,7 @@
 #include "TL/Functions/HELP/Public/GetConfig.h"
 #include "TL/Functions/COMMON/Public/InitConnection.h"
 #include "TL/Functions/COMMON/Public/InvokeWithLayer.h"
-#include "TL/TL_Object.h"
+#include "TL/TLObjectBase.h"
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
 #include "tl/Session.h"
@@ -71,7 +71,7 @@ bool TelegramClient::Connect()
 	COMMON::InitConnection InitRequest(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
 		ClientSession->GetLangPack(), ClientSession->GetLangCode(), &ConfigRequest);
 	COMMON::InvokeWithLayer InvokeWithLayerRequest(71, &InitRequest);
-	InvokeWithLayerRequest.OnSend(InitConnection);
+	//InvokeWithLayerRequest.OnSend(InitConnection);
  
 // 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 	/*Python rsa encrypt test area*/
@@ -100,8 +100,8 @@ bool TelegramClient::Connect()
 
 	MTProtoSender Sender(&Transport, ClientSession);
 
-	int32 InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
-	auto Recv = Sender.Receive();
+	int32 InitSent = Sender.Send(InvokeWithLayerRequest);
+	auto Recv = Sender.Receive(InvokeWithLayerRequest);
 // 	InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
 // 	Recv = Sender.Receive();
 	BinaryReader NEwReader(Recv.GetData(), Recv.Num());

@@ -8,11 +8,8 @@
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
 #include "crypto/Crypto.h"
-
-bool ContentRelated = false; // This should be in TL object
-bool IsMsgOk = true;
-unsigned char * MessageData;
-int32 MessageSize = 0;
+#include "../../TL/TLObjectBase.h"
+#include "../../TL/Types/COMMON//Public/MsgsAck.h"
 
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
 	: MTProtoPlainSender(Transport)
@@ -23,27 +20,24 @@ MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
 		MTSession = NewSession;
 }
 
-int32 MTProtoSender::Send(unsigned char * Data, int32 Size)
+int32 MTProtoSender::Send(TLObject &Message)
 {
 	if (Transport == nullptr) return 0;
 	SendAcknowledges();
-	ContentRelated = true;
-	MessageData = Data;
-	MessageSize = Size;
-	uint32 BytesSent = SendPacket(Data, Size);
-	//ClientMessagesNeedAcknowledges.Add()
+	uint32 BytesSent = SendPacket(Message);
+	ClientMessagesNeedAcknowledges.Add(Message);
 	return BytesSent;
 }
 
-TArray<unsigned char> MTProtoSender::Receive()
+TArray<unsigned char> MTProtoSender::Receive(TLObject &Message)
 {
 	if (Transport == nullptr) return TArray<unsigned char>();
 	TArray<unsigned char> Received;
-	while(IsMsgOk)
+	while(!Message.IsConfirmReceived())
 	{
 		auto Response = Transport->Receive();
 		auto Decoded = DecodeMessage(Response);
-		ProcessMessage(Decoded);
+		ProcessMessage(Decoded, Message);
 	}
 	return Received;
 }
@@ -52,32 +46,34 @@ void MTProtoSender::SendAcknowledges()
 {
 	if (ServerMessagesNeedAcknowledges.Num() != 0)
 	{
-		BinaryWriter Writer;
-		Writer.WriteInt(0x62d6b459); // Message acknowledge constructor
-		Writer.WriteInt(0x1cb5c415); //Vector constructor
-		Writer.WriteInt(ServerMessagesNeedAcknowledges.Num());
-		for (auto Message : ServerMessagesNeedAcknowledges)
-			Writer.WriteLong(Message);
-		ContentRelated = false;
-		SendPacket(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
+		COMMON::MsgsAck Acknowledge(ServerMessagesNeedAcknowledges);
+// 		Writer.WriteInt(0x62d6b459); // Message acknowledge constructor
+// 		Writer.WriteInt(0x1cb5c415); //Vector constructor
+// 		Writer.WriteInt(ServerMessagesNeedAcknowledges.Num());
+// 		for (uint64 Message : ServerMessagesNeedAcknowledges)
+// 			Writer.WriteLong(Message);
+		SendPacket(Acknowledge);
 		ServerMessagesNeedAcknowledges.Empty(1);
 	}
 }
 
-int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
+int32 MTProtoSender::SendPacket(TLObject &Message)
 {
 	BinaryWriter PlainWriter;
 
-	unsigned long long NewMessageID =  GetNewMessageID();
-
+	Message.SetRequestMessageID(GetNewMessageID());
 	PlainWriter.WriteLong(MTSession->GetSalt());
 	PlainWriter.WriteLong(MTSession->GetID());
-	PlainWriter.WriteLong(NewMessageID);
+	PlainWriter.WriteLong(Message.GetRequestMessageID());
+
+	bool ContentRelated = Message.IsContentRelated();
 	PlainWriter.WriteInt(MTSession->GetSequence(ContentRelated));
-	PlainWriter.WriteInt(Size);
-	PlainWriter.Write(Data, Size);
-	if (ContentRelated)
-		ClientMessagesNeedAcknowledges.Add(NewMessageID);
+
+	BinaryWriter MessageDataWriter;
+	Message.OnSend(MessageDataWriter);
+	uint32 MessageLength = MessageDataWriter.GetWrittenBytesCount();
+	PlainWriter.WriteInt(MessageLength);
+	PlainWriter.Write(MessageDataWriter.GetBytes().GetData(), MessageLength);
 
 	TArray<unsigned char> MessageKey = CalculateMessageKey(PlainWriter.GetBytes().GetData(), PlainWriter.GetWrittenBytesCount());
 
@@ -92,7 +88,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	if (PlainWriter.GetWrittenBytesCount() % 16 != 0)
 	{
 		DHEncDataPadding = 16 - (PlainWriter.GetWrittenBytesCount() % 16);
-		PlainWriter.Write(Data, DHEncDataPadding); //writing random(from data) padding bytes
+		PlainWriter.Write(MessageKey.GetData(), DHEncDataPadding); //writing random(from data) padding bytes
 	}
 
 	unsigned char CipherText[2048];
@@ -105,7 +101,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	return Transport->Send(CipherWriter.GetBytes().GetData(), CipherWriter.GetWrittenBytesCount());
 }
 
-bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
+bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLObject &Request)
 {
 	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
@@ -115,7 +111,7 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));	
 		ServerMessagesNeedAcknowledges.Remove(MTSession->GetLastMsgID());
-		return HandleBadServerSalt(Message);
+		return HandleBadServerSalt(Message, Request);
 	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
 		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
@@ -147,7 +143,6 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
 // 					return True
 	if (Response == 0x62d6b459)
 		0; 
-	IsMsgOk = false;
 	return false;
 }
 
@@ -186,7 +181,7 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	return RemoteMessage;
 }
 
-bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
+bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLObject &Request)
 {
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	int32 Code = Reader.ReadInt();
@@ -195,8 +190,8 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
 	int32 ErrorCode = Reader.ReadInt(); // error code
 	unsigned long long NewSalt = Reader.ReadLong();
  	MTSession->SetSalt(NewSalt);
-	if(ClientMessagesNeedAcknowledges.Contains(BadMessageID))
-		Send(MessageData, MessageSize);
+	if(ClientMessagesNeedAcknowledges.Contains(Request))
+		Send(Request);
 	MTSession->Save();
 	return true;
 }
@@ -223,6 +218,7 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
 // 			raise
 // 
 // 			return True
+
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	uint32 Code = Reader.ReadInt();
 	uint32 Size = Reader.ReadInt();
@@ -232,8 +228,8 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
 		Reader.ReadInt(); // inner sequence
 		uint32 InnerLength = Reader.ReadInt();
 		uint32 BeginPosition = Reader.GetOffset();
-		if (ProcessMessage(Reader.GetBytes()))
-			Reader.SetOffset(BeginPosition + InnerLength);
+// 		if (ProcessMessage(Reader.GetBytes(), TLObject())) // change
+// 			Reader.SetOffset(BeginPosition + InnerLength);
 	}
 	return true;
 }
