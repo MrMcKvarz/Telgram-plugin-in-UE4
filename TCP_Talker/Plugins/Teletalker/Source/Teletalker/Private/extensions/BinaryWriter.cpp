@@ -1,6 +1,6 @@
 #include "extensions/BinaryWriter.h"
 #include <algorithm> 
-#include "../../TL/TLObject.h"
+#include "../../TL/TLObjectBase.h"
 BinaryWriter::BinaryWriter()
 {
 	Buff.Reserve(DefaultSize * 4);

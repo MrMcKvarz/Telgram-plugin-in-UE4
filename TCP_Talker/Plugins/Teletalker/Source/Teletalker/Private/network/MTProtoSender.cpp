@@ -43,7 +43,7 @@ TArray<unsigned char> MTProtoSender::Receive()
 	{
 		auto Response = Transport->Receive();
 		auto Decoded = DecodeMessage(Response);
-		Received = ProcessMessage(Decoded);
+		ProcessMessage(Decoded);
 	}
 	return Received;
 }
@@ -105,7 +105,7 @@ int32 MTProtoSender::SendPacket(unsigned char * Data, int32 Size)
 	return Transport->Send(CipherWriter.GetBytes().GetData(), CipherWriter.GetWrittenBytesCount());
 }
 
-TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
+bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message)
 {
 	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
@@ -115,8 +115,7 @@ TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Messag
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));	
 		ServerMessagesNeedAcknowledges.Remove(MTSession->GetLastMsgID());
-		HandleBadServerSalt(Message);
-		return Message;
+		return HandleBadServerSalt(Message);
 	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
 		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
@@ -134,7 +133,7 @@ TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Messag
 	if (Response == 0x9ec20908)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Session created"));
-		return Message;
+		return true;
 	}
 // 	if code == 0x62d6b459:
 // 	ack = reader.tgread_object()
@@ -149,7 +148,7 @@ TArray<unsigned char> MTProtoSender::ProcessMessage(TArray<unsigned char> Messag
 	if (Response == 0x62d6b459)
 		0; 
 	IsMsgOk = false;
-	return Message;
+	return false;
 }
 
 TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message)
@@ -189,18 +188,6 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 
 bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
 {
-// 	reader.read_int(signed = False)  # code
-// 		bad_msg_id = reader.read_long()
-// 		reader.read_int()  # bad_msg_seq_no
-// 		reader.read_int()  # error_code
-// 		new_salt = reader.read_long(signed = False)
-// 		self.session.salt = new_salt
-// 
-// 		try :
-// 		request = next(r for r in self._pending_receive
-// 			if r.request_msg_id == bad_msg_id)
-// 
-// 		self.send(request)
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	int32 Code = Reader.ReadInt();
 	unsigned long long BadMessageID = Reader.ReadLong();
@@ -216,6 +203,26 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message)
 
 bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
 {
+// 	reader.read_int(signed = False)  # code
+// 	size = reader.read_int()
+// 	for _ in range(size) :
+// 		inner_msg_id = reader.read_long()
+// 		reader.read_int()  # inner_sequence
+// 		inner_length = reader.read_int()
+// 		begin_position = reader.tell_position()
+// 
+// 		# Note that this code is IMPORTANT for skipping RPC results of
+// 		# lost requests(i.e., ones from the previous connection session)
+// 		try :
+// 		if not self._process_msg(
+// 			inner_msg_id, sequence, reader, updates) :
+// 			reader.set_position(begin_position + inner_length)
+// 			except :
+// 			# If any error is raised, something went wrong; skip the packet
+// 			reader.set_position(begin_position + inner_length)
+// 			raise
+// 
+// 			return True
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	uint32 Code = Reader.ReadInt();
 	uint32 Size = Reader.ReadInt();
@@ -224,6 +231,9 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
 		unsigned long long InnerMessageID = Reader.ReadLong();
 		Reader.ReadInt(); // inner sequence
 		uint32 InnerLength = Reader.ReadInt();
+		uint32 BeginPosition = Reader.GetOffset();
+		if (ProcessMessage(Reader.GetBytes()))
+			Reader.SetOffset(BeginPosition + InnerLength);
 	}
 	return true;
 }

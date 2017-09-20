@@ -1,5 +1,5 @@
 #include "extensions/BinaryReader.h"
-#include "../../TL/TLObject.h"
+#include "../../TL/TLObjectBase.h"
 
 BinaryReader::BinaryReader(const unsigned char * Data, int Size)
 {
@@ -76,6 +76,16 @@ void BinaryReader::Close()
 int32 BinaryReader::GetOffset()
 {
 	return Offset;
+}
+
+uint32 BinaryReader::GetOffset() const
+{
+	return Offset;
+}
+
+void BinaryReader::SetOffset(uint32 Value)
+{
+	Offset = Value;
 }
 
 TArray<unsigned char> BinaryReader::GetBytes(bool Flush /*= true*/)

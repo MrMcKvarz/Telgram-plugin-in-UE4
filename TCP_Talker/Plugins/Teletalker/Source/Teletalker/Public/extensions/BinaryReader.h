@@ -31,4 +31,6 @@ public:
 	FDateTime TGReadDate();
 	TBigInt<128> Read128Int();
 	TBigInt<256> Read256Int();
+	uint32 GetOffset() const;
+	void SetOffset(uint32 Value);
 };

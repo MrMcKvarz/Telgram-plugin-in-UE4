@@ -21,7 +21,7 @@ public:
 private:
 	void SendAcknowledges();
 	int32 SendPacket(unsigned char * Data, int32 Size);
-	TArray<unsigned char> ProcessMessage(TArray<unsigned char> Message);
+	bool ProcessMessage(TArray<unsigned char> Message);
 	TArray<unsigned char> DecodeMessage(TArray<unsigned char> Message);
 	bool HandleBadServerSalt(TArray<unsigned char> Message);
 	bool HandleMessageContainer(TArray<unsigned char> Message);
