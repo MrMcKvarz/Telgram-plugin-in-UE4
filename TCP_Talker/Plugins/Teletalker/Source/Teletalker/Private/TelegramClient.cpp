@@ -111,7 +111,6 @@ bool TelegramClient::Connect()
 		UE_LOG(LogTemp, Warning, TEXT("Session prob saved 2"));
 
 	return true;
-
 }
 
 

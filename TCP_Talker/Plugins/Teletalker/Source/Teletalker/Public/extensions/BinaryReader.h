@@ -11,6 +11,7 @@ class BinaryReader
 	int Size;
 	int Offset;
 public:
+	BinaryReader();
 	BinaryReader(const unsigned char * Data, int Size);
 	~BinaryReader();
 

@@ -14,6 +14,11 @@ BinaryReader::BinaryReader(const unsigned char * Data, int Size)
 	Offset = 0;
 }
 
+BinaryReader::BinaryReader()
+{
+	Buff.Reserve(2048);
+}
+
 BinaryReader::~BinaryReader()
 {
 	Buff.Empty();

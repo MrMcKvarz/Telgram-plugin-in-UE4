@@ -132,7 +132,26 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 
 	// msgs_ack, it may handle the request we wanted
 	if (Response == 0x62d6b459)
+	{
 		UE_LOG(LogTemp, Warning, TEXT("msg ack"));
+		MessageReader.SetOffset(0);
+		TLBaseObject * Ack = MessageReader.TGReadObject();
+		TArray<uint64> MessagesNeedAcknowledges;
+		if (Ack == nullptr) return false;
+		else
+		{
+			Ack->OnResponce(MessageReader);
+			for (int32 i = 0; i < MessageReader.GetBytes().Num() / 8; i++)
+				MessagesNeedAcknowledges.Add(MessageReader.ReadLong());
+		}
+		for (auto ConfirmMessage : ClientMessagesNeedAcknowledges)
+		{
+			for (uint64 ServerSentAck : MessagesNeedAcknowledges)
+				if (ServerSentAck == ConfirmMessage.GetRequestMessageID())
+					ConfirmMessage.SetConfirmReceived(true);
+		}
+		return true;
+	}
 // 	if code == 0x62d6b459:
 // 	ack = reader.tgread_object()
 // 		for r in self._pending_receive :
