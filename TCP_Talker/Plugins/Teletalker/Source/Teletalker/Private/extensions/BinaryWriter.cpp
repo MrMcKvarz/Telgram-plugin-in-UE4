@@ -1,6 +1,7 @@
 #include "extensions/BinaryWriter.h"
 #include <algorithm> 
 #include "../../TL/TLObjectBase.h"
+
 BinaryWriter::BinaryWriter()
 {
 	Buff.Reserve(DefaultSize * 4);
@@ -167,7 +168,7 @@ bool BinaryWriter::Write256Int(TBigInt<256> Value)
 	return true;
 }
 
-bool BinaryWriter::TGWriteObject(TLObjAbstract* Value)
+bool BinaryWriter::TGWriteObject(TLBaseObject* Value)
 {
 	return true;
 }

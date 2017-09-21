@@ -20,7 +20,7 @@ MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
 		MTSession = NewSession;
 }
 
-int32 MTProtoSender::Send(TLObject &Message)
+int32 MTProtoSender::Send(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return 0;
 	SendAcknowledges();
@@ -29,7 +29,7 @@ int32 MTProtoSender::Send(TLObject &Message)
 	return BytesSent;
 }
 
-TArray<unsigned char> MTProtoSender::Receive(TLObject &Message)
+TArray<unsigned char> MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return TArray<unsigned char>();
 	TArray<unsigned char> Received;
@@ -57,7 +57,7 @@ void MTProtoSender::SendAcknowledges()
 	}
 }
 
-int32 MTProtoSender::SendPacket(TLObject &Message)
+int32 MTProtoSender::SendPacket(TLBaseObject &Message)
 {
 	BinaryWriter PlainWriter;
 
@@ -101,7 +101,7 @@ int32 MTProtoSender::SendPacket(TLObject &Message)
 	return Transport->Send(CipherWriter.GetBytes().GetData(), CipherWriter.GetWrittenBytesCount());
 }
 
-bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLObject &Request)
+bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &Request)
 {
 	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
@@ -181,7 +181,7 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	return RemoteMessage;
 }
 
-bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLObject &Request)
+bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObject &Request)
 {
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	int32 Code = Reader.ReadInt();

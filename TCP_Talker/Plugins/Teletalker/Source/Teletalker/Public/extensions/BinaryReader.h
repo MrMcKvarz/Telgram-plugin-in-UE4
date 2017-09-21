@@ -1,9 +1,9 @@
 #pragma once
 #include "Engine.h"
-#include "tl/TL_Object.h"
+
 #include "BigInt.h"
 
-class TLObjAbstract;
+class TLBaseObject;
 
 class BinaryReader
 {
@@ -23,7 +23,7 @@ public:
 	int32 GetOffset();
 	TArray<unsigned char> GetBytes(bool Flush = true);
 	TArray<unsigned char> TGReadBytes();
-	TLObjAbstract * TGReadObject();
+	TLBaseObject * TGReadObject();
 	bool TGReadBool();
 	FString TGReadString();
 	bool ReadBool();
