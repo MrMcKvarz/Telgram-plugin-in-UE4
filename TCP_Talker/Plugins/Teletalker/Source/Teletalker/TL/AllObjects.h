@@ -902,7 +902,7 @@ TMap<int32, TLBaseObject*> TLObjects()
 	AllObjects.Add(1658015945, new COMMON::DestroySessionNone());
 	AllObjects.Add(-1631450872, new COMMON::NewSessionCreated());
 	AllObjects.Add(-1835453025, new COMMON::HttpWait());
-	AllObjects.Add(-1609667052, new COMMON::IpPort());
+	AllObjects.Add(1940730836, new COMMON::IpPort());
 	AllObjects.Add(-644365371, new HELP::ConfigSimple());
 	AllObjects.Add(1491380032, new COMMON::RpcDropAnswer());
 	AllObjects.Add(-1188971260, new COMMON::GetFutureSalts());

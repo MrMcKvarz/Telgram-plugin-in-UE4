@@ -27,4 +27,5 @@ private:
 	TArray<unsigned char> DecodeMessage(TArray<unsigned char> Message);
 	bool HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObject &Request);
 	bool HandleMessageContainer(TArray<unsigned char> Message, TLBaseObject &Request);
+	bool HandleBadMessageNotify(TArray<unsigned char> Message, TLBaseObject &Request);
 };

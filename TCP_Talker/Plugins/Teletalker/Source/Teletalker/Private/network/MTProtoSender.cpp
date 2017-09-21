@@ -125,7 +125,11 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 	if (Response == 0x3072cfa1)  // gzip_packed
 		UE_LOG(LogTemp, Warning, TEXT("gzip packed"));
 	if (Response == 0xa7eff811)  // bad_msg_notification
+	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad msg notify"));
+		return HandleBadMessageNotify(Message, Request);
+	}
+
 	// msgs_ack, it may handle the request we wanted
 	if (Response == 0x62d6b459)
 		UE_LOG(LogTemp, Warning, TEXT("msg ack"));
@@ -151,9 +155,10 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 	{
 		MessageReader.SetOffset(0);
 		TLBaseObject *Result = MessageReader.TGReadObject();
+		return true;
 	}
 
-	return false;
+ 	return false;
 }
 
 TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message)
@@ -228,7 +233,6 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message, TLBase
 // 			raise
 // 
 // 			return True
-
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	uint32 Code = Reader.ReadInt();
 	uint32 Size = Reader.ReadInt();
@@ -244,6 +248,95 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message, TLBase
 		else
 			return false;
 	}
+	return true;
+}
+
+bool MTProtoSender::HandleBadMessageNotify(TArray<unsigned char> Message, TLBaseObject &Request)
+{
+// self._logger.debug('Handling bad message notification')
+// 	reader.read_int(signed = False)  # code
+// 	reader.read_long()  # request_id
+// 	reader.read_int()  # request_sequence
+// 
+// 	error_code = reader.read_int()
+// 	error = BadMessageError(error_code)
+// 	if error_code in(16, 17) :
+// 		# sent msg_id too low or too high(respectively).
+// 		# Use the current msg_id to determine the right time offset.
+// 		self.session.update_time_offset(correct_msg_id = msg_id)
+// 		self.session.save()
+// 		self._logger.debug('Read Bad Message error: ' + str(error))
+// 		self._logger.debug('Attempting to use the correct time offset.')
+// 		return True
+// 	else:
+// raise error
+	BinaryReader Reader(Message.GetData(), Message.Num());
+	uint32 Code = Reader.ReadInt();
+	uint64 RequestID = Reader.ReadLong();
+	Reader.ReadInt();
+	uint32 ErrorCode = Reader.ReadInt();
+#pragma region Errors
+	switch (ErrorCode)
+	{
+	case 16:
+	{
+		UE_LOG(LogTemp, Error, TEXT("msg_id too low (most likely, client time is wrong it would be worthwhile to synchronize it using msg_id notifications and re-send the original message with the correct msg_id or wrap it in a container with a new msg_id if the original message had waited too long on the client to be transmitted)."));
+		break;
+	}
+	case 17:
+	{
+		UE_LOG(LogTemp, Error, TEXT("msg_id too high (similar to the previous case, the client time has to be synchronized, and the message re-sent with the correct msg_id)."));
+		break;
+	}
+	case 18:
+	{
+		UE_LOG(LogTemp, Error, TEXT("Incorrect two lower order msg_id bits (the server expects client message msg_id to be divisible by 4)."));
+		break;
+	}
+	case 19:
+	{
+		UE_LOG(LogTemp, Error, TEXT("Container msg_id is the same as msg_id of a previously received message (this must never happen)."));
+		break;
+	}
+	case 20:
+	{
+		UE_LOG(LogTemp, Error, TEXT("Message too old, and it cannot be verified whether the server has received a message with this msg_id or not."));
+		break;
+	}
+	case 32:
+	{
+		UE_LOG(LogTemp, Error, TEXT("msg_seqno too low (the server has already received a message with a lower 'msg_id but with either a higher or an equal and odd seqno)."));
+		break;
+	}
+	case 33:
+	{
+		UE_LOG(LogTemp, Error, TEXT("msg_seqno too high (similarly, there is a message with a higher msg_id but with either a lower or an equal and odd seqno)."));
+		break;
+	}
+	case 34:
+	{
+		UE_LOG(LogTemp, Error, TEXT("An even msg_seqno expected (irrelevant message), but odd received."));
+		break;
+	}
+	case 35: 	
+	{
+		UE_LOG(LogTemp, Error, TEXT("Odd msg_seqno expected (relevant message), but even received."));
+		break;
+	}
+	case 48:
+	{
+		UE_LOG(LogTemp, Error, TEXT("Incorrect server salt (in this case, the bad_server_salt response is received with the correct salt, and the message is to be re-sent with it)."));
+		break;
+	}
+	case 64: 	
+	{
+		UE_LOG(LogTemp, Error, TEXT("Invalid container."));
+		break;
+	}
+	default:
+		break;
+	}
+#pragma endregion
 	return true;
 }
 
