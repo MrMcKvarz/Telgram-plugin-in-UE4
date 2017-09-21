@@ -1,5 +1,6 @@
 #include "extensions/BinaryReader.h"
 #include "../../TL/TLObjectBase.h"
+#include "../../TL/AllObjects.h"
 
 BinaryReader::BinaryReader(const unsigned char * Data, int Size)
 {
@@ -121,8 +122,33 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 
 TLBaseObject* BinaryReader::TGReadObject()
 {
-	TLBaseObject * Dafak = new TLBaseObject();
-	return Dafak;
+// constructor_id = self.read_int(signed = False)
+// 	clazz = tlobjects.get(constructor_id, None)
+// 	if clazz is None :
+// # The class was None, but there's still a
+// 	# chance of it being a manually parsed value like bool!
+// 	value = constructor_id
+// 	if value == 0x997275b5:  # boolTrue
+// 		return True
+// 		elif value == 0xbc799737:  # boolFalse
+// 		return False
+// 
+// 		# If there was still no luck, give up
+// 		raise TypeNotFoundError(constructor_id)
+// 
+// 		# Create an empty instance of the class and
+// 		# fill it with the read attributes
+// 		result = clazz.empty()
+// 		result.on_response(self)
+// 		return result
+	uint32 ConstructorID = ReadInt();
+	TLBaseObject * Result = TLObjects()[ConstructorID];
+	if (Result == nullptr) 
+		return nullptr;
+	else
+		Result->OnResponce(*this);
+
+	return Result;
 }
 
 bool BinaryReader::TGReadBool()

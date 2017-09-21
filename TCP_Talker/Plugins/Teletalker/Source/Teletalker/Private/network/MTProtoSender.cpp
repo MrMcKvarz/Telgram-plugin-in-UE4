@@ -8,8 +8,8 @@
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
 #include "crypto/Crypto.h"
-#include "../../TL/TLObjectBase.h"
-#include "../../TL/Types/COMMON//Public/MsgsAck.h"
+#include "../../TL/AllObjects.h"
+
 
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
 	: MTProtoPlainSender(Transport)
@@ -105,7 +105,7 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 {
 	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
-	int32 Response = MessageReader.ReadInt();
+	uint32 Response = MessageReader.ReadInt();
 
 	if (Response == 0xedab447b) // bad server salt
 	{
@@ -118,19 +118,17 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 	if (Response == 0x347773c5)  // pong
 		UE_LOG(LogTemp, Warning, TEXT("pong"));
 	if (Response == 0x73f1f8dc)  // msg_container
+	{
 		UE_LOG(LogTemp, Warning, TEXT("msg container"));
+		return HandleMessageContainer(Message, Request);		
+	}
 	if (Response == 0x3072cfa1)  // gzip_packed
 		UE_LOG(LogTemp, Warning, TEXT("gzip packed"));
 	if (Response == 0xa7eff811)  // bad_msg_notification
 		UE_LOG(LogTemp, Warning, TEXT("Bad msg notify"));
 	// msgs_ack, it may handle the request we wanted
 	if (Response == 0x62d6b459)
-		UE_LOG(LogTemp, Warning, TEXT("Bad msg ack"));
-	if (Response == 0x9ec20908)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Session created"));
-		return true;
-	}
+		UE_LOG(LogTemp, Warning, TEXT("msg ack"));
 // 	if code == 0x62d6b459:
 // 	ack = reader.tgread_object()
 // 		for r in self._pending_receive :
@@ -141,8 +139,20 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 // 					r.confirm_received = True
 // 
 // 					return True
-	if (Response == 0x62d6b459)
-		0; 
+
+// if code in tlobjects :
+// result = reader.tgread_object()
+// 	if updates is None :
+// self._logger.debug('Ignored update for %s', repr(result))
+// 	else :
+// 	self._logger.debug('Read update for %s', repr(result))
+// 		updates.append(result)
+	if (TLObjects().Contains(Response))
+	{
+		MessageReader.SetOffset(0);
+		TLBaseObject *Result = MessageReader.TGReadObject();
+	}
+
 	return false;
 }
 
@@ -196,7 +206,7 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObj
 	return true;
 }
 
-bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
+bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message, TLBaseObject &Request)
 {
 // 	reader.read_int(signed = False)  # code
 // 	size = reader.read_int()
@@ -228,8 +238,11 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message)
 		Reader.ReadInt(); // inner sequence
 		uint32 InnerLength = Reader.ReadInt();
 		uint32 BeginPosition = Reader.GetOffset();
-// 		if (ProcessMessage(Reader.GetBytes(), TLObject())) // change
-// 			Reader.SetOffset(BeginPosition + InnerLength);
+		auto ContainedMessage = Reader.Read(InnerLength);
+		if (ProcessMessage(ContainedMessage, Request))
+			Reader.SetOffset(BeginPosition + InnerLength);
+		else
+			return false;
 	}
 	return true;
 }
