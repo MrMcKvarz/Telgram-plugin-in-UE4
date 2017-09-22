@@ -25,7 +25,7 @@ int32 MTProtoSender::Send(TLBaseObject &Message)
 	if (Transport == nullptr) return 0;
 	SendAcknowledges();
 	uint32 BytesSent = SendPacket(Message);
-	ClientMessagesNeedAcknowledges.Add(Message);
+	ClientMessagesNeedAcknowledges.Add(&Message);
 	return BytesSent;
 }
 
@@ -136,19 +136,16 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 		UE_LOG(LogTemp, Warning, TEXT("msg ack"));
 		MessageReader.SetOffset(0);
 		TLBaseObject * Ack = MessageReader.TGReadObject();
-		TArray<uint64> MessagesNeedAcknowledges;
 		if (Ack == nullptr) return false;
 		else
 		{
-			Ack->OnResponce(MessageReader);
-			for (int32 i = 0; i < MessageReader.GetBytes().Num() / 8; i++)
-				MessagesNeedAcknowledges.Add(MessageReader.ReadLong());
-		}
-		for (auto ConfirmMessage : ClientMessagesNeedAcknowledges)
-		{
-			for (uint64 ServerSentAck : MessagesNeedAcknowledges)
-				if (ServerSentAck == ConfirmMessage.GetRequestMessageID())
-					ConfirmMessage.SetConfirmReceived(true);
+			COMMON::MsgsAck* MessageAck = reinterpret_cast<COMMON::MsgsAck*>(Ack);
+			for (TLBaseObject * ConfirmMessage : ClientMessagesNeedAcknowledges)
+			{
+				for(uint64 Confirmation : MessageAck->msg_ids)
+					if (Confirmation == ConfirmMessage->GetRequestMessageID())
+						ConfirmMessage->SetConfirmReceived(true);
+			}
 		}
 		return true;
 	}
@@ -224,7 +221,7 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObj
 	int32 ErrorCode = Reader.ReadInt(); // error code
 	unsigned long long NewSalt = Reader.ReadLong();
  	MTSession->SetSalt(NewSalt);
-	if(ClientMessagesNeedAcknowledges.Contains(Request))
+	if(ClientMessagesNeedAcknowledges.Contains(&Request))
 		Send(Request);
 	MTSession->Save();
 	return true;

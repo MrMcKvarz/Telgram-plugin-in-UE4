@@ -113,5 +113,10 @@ bool TelegramClient::Connect()
 	return true;
 }
 
+bool TelegramClient::Invoke(TLBaseObject &Request)
+{
+	//if()
+	return true;
+}
 
 

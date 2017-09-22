@@ -10,7 +10,7 @@ class MTProtoSender : MTProtoPlainSender
 {
 	Session * MTSession;
 	TArray<unsigned long long> ServerMessagesNeedAcknowledges;
-	TArray<TLBaseObject> ClientMessagesNeedAcknowledges;
+	TArray<TLBaseObject*> ClientMessagesNeedAcknowledges;
 public:
 	MTProtoSender(TCPTransport * Transport, Session * NewSession);
 	int32 Send(TLBaseObject &Message); // TLObject
