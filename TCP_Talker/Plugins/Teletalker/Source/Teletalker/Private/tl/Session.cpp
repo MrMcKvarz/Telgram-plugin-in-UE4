@@ -64,13 +64,11 @@ bool Session::Save()
 	IDWriter.WriteLong(ID);	
 	/*This write string that itself is invalid, but contains right bytes, and we are able to load it correctly*/
 	/*this is actually not that bad, since it provide some kind of protection to session file*/
-	JsonObject->SetStringField("ID",FString::FromBlob(IDWriter.GetBytes().GetData(),IDWriter.GetWrittenBytesCount()));
 	JsonObject->SetNumberField("Port", Port);
 
 	BinaryWriter SaltWriter;
 	SaltWriter.WriteLong(Salt);
 	JsonObject->SetStringField("Salt", FString::FromBlob(SaltWriter.GetBytes().GetData(), SaltWriter.GetWrittenBytesCount()));
-	JsonObject->SetNumberField("Sequence", Sequence);
 	JsonObject->SetStringField("ServerAddress", ServerAddress);
 	FString AuthKeyString = FString::FromHexBlob(SessionAuthKey.GetKey().GetData(), SessionAuthKey.GetKey().Num());
 	JsonObject->SetStringField("AuthKeyData", AuthKeyString);
@@ -99,11 +97,6 @@ bool Session::Load()
 
 	if (FJsonSerializer::Deserialize(Reader, JsonObject))
 	{
-		FString IDString = JsonObject->GetStringField(TEXT("ID"));
-		uint8 IDBuffer[2048];
-		FString::ToBlob(IDString, IDBuffer, IDString.Len());
-		ID = BinaryReader(IDBuffer, IDString.Len()).ReadLong();
-
 		Port = JsonObject->GetNumberField(TEXT("Port"));
 
 		FString SaltString = JsonObject->GetStringField(TEXT("Salt"));
@@ -111,7 +104,6 @@ bool Session::Load()
 		FString::ToBlob(SaltString, SaltBuffer, SaltString.Len());
 		Salt = BinaryReader(SaltBuffer, SaltString.Len()).ReadLong();
 
-		Sequence = JsonObject->GetNumberField(TEXT("Sequence"));
 		ServerAddress = JsonObject->GetStringField(TEXT("ServerAddress"));
 		FString AuthKeyString = JsonObject->GetStringField(TEXT("AuthKeyData"));
 
