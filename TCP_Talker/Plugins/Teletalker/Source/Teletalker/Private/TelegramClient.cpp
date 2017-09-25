@@ -44,71 +44,29 @@ bool TelegramClient::Connect()
 		ClientSession->SetAuthKey(AuthKeyData);
 
 		if (ClientSession->Save())
-			UE_LOG(LogTemp, Warning, TEXT("Session prob saved"));
+			UE_LOG(LogTemp, Warning, TEXT("Session saved"));
 	}
 
-	/*This data is valid for request*/
-	BinaryWriter InitConnection;
-	/*TL init with layer*/
-
-// 	InitConnection.WriteInt(0xda9b0d0d);
-// 	InitConnection.WriteInt(71);
-	/*TL init connection*/
-
-// 	InitConnection.WriteInt(0xc7481da6);
-// 	InitConnection.WriteInt(API_ID);
-// 	InitConnection.TGWriteString(ClientSession->GetDeviceModel());
-// 	InitConnection.TGWriteString(ClientSession->GetSystemVersion());
-// 	InitConnection.TGWriteString(ClientSession->GetAppVersion());
-// 	InitConnection.TGWriteString(ClientSession->GetSystemLangCode());
-// 	InitConnection.TGWriteString(ClientSession->GetLangPack());
-// 	InitConnection.TGWriteString(ClientSession->GetLangCode());
-	/*TL get config*/
-	//InitConnection.WriteInt(0xc4f9186b); // get config request constructor
-
-	//TLObjAbstract Tset;
 	HELP::GetConfig ConfigRequest;
 	COMMON::InitConnection InitRequest(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
 		ClientSession->GetLangPack(), ClientSession->GetLangCode(), &ConfigRequest);
 	COMMON::InvokeWithLayer InvokeWithLayerRequest(71, &InitRequest);
-	//InvokeWithLayerRequest.OnSend(InitConnection);
- 
-// 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// 	/*Python rsa encrypt test area*/
-// 	FIPv4Address TeServer(127, 0, 0, 1);
-// 	const int32 TePort = 27015;
-// 
-// 	FSocket *Sock = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateSocket(NAME_Stream, TEXT("PythonEncrypt"), false);
-// 
-// 	auto Address = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-// 	Address->SetIp(TeServer.Value);
-// 	Address->SetPort(TePort);
-// 
-// 	const int32 TestReceive = 88;
-// 	uint8 RecvKey[88];
-// 	uint8 AuthRecv[256];
-// 	Sock->Connect(*Address);
-// 	int32 bytessent = -1;
-// 	//Sock->Send((uint8 *)AuthKeyData.GetData(), AuthKeyData.Num(), bytessent);
-// 	//std::this_thread::sleep_for(std::chrono::milliseconds(10));
-// 	int32 CipherRead;
-// 	Sock->Recv(RecvKey, TestReceive, CipherRead);
-// 	TArray<unsigned char> MessageKey = CalculateMessageKey(RecvKey, CipherRead);
-/*	Sock->Recv(AuthRecv, 256, teasd);*/
-	// 	/*End test area*/
-	// 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	MTProtoSender Sender(&Transport, ClientSession);
 
 	int32 InitSent = Sender.Send(InvokeWithLayerRequest);
-	auto Recv = Sender.Receive(InvokeWithLayerRequest);
-// 	InitSent = Sender.Send(InitConnection.GetBytes().GetData(), InitConnection.GetWrittenBytesCount());
-// 	Recv = Sender.Receive();
-	BinaryReader NEwReader(Recv.GetData(), Recv.Num());
-	uint32 BadResponse = NEwReader.ReadInt();
+  	auto Recv = Sender.Receive(InvokeWithLayerRequest);
 
-	if (ClientSession->Save())
-		UE_LOG(LogTemp, Warning, TEXT("Session prob saved 2"));
+// 	BinaryWriter StringWriter;
+// 	StringWriter.TGWriteString(FString("192.168.15.46"));
+// 	BinaryReader StringReader(StringWriter.GetBytes().GetData(), StringWriter.GetWrittenBytesCount());
+// 	FString Result = StringReader.TGReadString();
+
+// 	BinaryReader NEwReader(Recv.GetData(), Recv.Num());
+// 	uint32 BadResponse = NEwReader.ReadInt();
+
+// 	if (ClientSession->Save())
+// 		UE_LOG(LogTemp, Warning, TEXT("Session prob saved 2"));
 
 	return true;
 }

@@ -28,4 +28,5 @@ private:
 	bool HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObject &Request);
 	bool HandleMessageContainer(TArray<unsigned char> Message, TLBaseObject &Request);
 	bool HandleBadMessageNotify(TArray<unsigned char> Message, TLBaseObject &Request);
+	bool HandleRPCResult(TArray<unsigned char> Message, TLBaseObject &Request);
 };

@@ -1167,7 +1167,7 @@ TMap<int32, TLBaseObject*> TLObjects()
 	AllObjects.Add(539045032, new PHOTOS::Photo());
 	AllObjects.Add(-1609667052, new UPLOAD::File());
 	AllObjects.Add(-363659686, new UPLOAD::FileCdnRedirect());
-	AllObjects.Add(-1609667052, new COMMON::DcOption());
+	AllObjects.Add(0x5d8c6cc, new COMMON::DcOption());
 	AllObjects.Add(-1913424220, new COMMON::Config());
 	AllObjects.Add(-1910892683, new COMMON::NearestDc());
 	AllObjects.Add(-1987579119, new HELP::AppUpdate());

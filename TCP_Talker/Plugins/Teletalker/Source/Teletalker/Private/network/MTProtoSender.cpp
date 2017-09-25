@@ -9,6 +9,7 @@
 #include "extensions/BinaryReader.h"
 #include "crypto/Crypto.h"
 #include "../../TL/AllObjects.h"
+#include <zlib.h>
 
 
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
@@ -33,7 +34,7 @@ TArray<unsigned char> MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return TArray<unsigned char>();
 	TArray<unsigned char> Received;
-	while(!Message.IsConfirmReceived())
+	while(Message.IsResponded())
 	{
 		auto Response = Transport->Receive();
 		auto Decoded = DecodeMessage(Response);
@@ -114,7 +115,10 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 		return HandleBadServerSalt(Message, Request);
 	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
+	{
 		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
+		return HandleRPCResult(Message, Request);
+	}
 	if (Response == 0x347773c5)  // pong
 		UE_LOG(LogTemp, Warning, TEXT("pong"));
 	if (Response == 0x73f1f8dc)  // msg_container
@@ -149,16 +153,6 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 		}
 		return true;
 	}
-// 	if code == 0x62d6b459:
-// 	ack = reader.tgread_object()
-// 		for r in self._pending_receive :
-// 			if r.request_msg_id in ack.msg_ids :
-// 				self._logger.debug('Ack found for the a request')
-// 
-// 				if self.logging_out :
-// 					r.confirm_received = True
-// 
-// 					return True
 
 // if code in tlobjects :
 // result = reader.tgread_object()
@@ -229,26 +223,7 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObj
 
 bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message, TLBaseObject &Request)
 {
-// 	reader.read_int(signed = False)  # code
-// 	size = reader.read_int()
-// 	for _ in range(size) :
-// 		inner_msg_id = reader.read_long()
-// 		reader.read_int()  # inner_sequence
-// 		inner_length = reader.read_int()
-// 		begin_position = reader.tell_position()
-// 
-// 		# Note that this code is IMPORTANT for skipping RPC results of
-// 		# lost requests(i.e., ones from the previous connection session)
-// 		try :
-// 		if not self._process_msg(
-// 			inner_msg_id, sequence, reader, updates) :
-// 			reader.set_position(begin_position + inner_length)
-// 			except :
-// 			# If any error is raised, something went wrong; skip the packet
-// 			reader.set_position(begin_position + inner_length)
-// 			raise
-// 
-// 			return True
+
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	uint32 Code = Reader.ReadInt();
 	uint32 Size = Reader.ReadInt();
@@ -353,6 +328,156 @@ bool MTProtoSender::HandleBadMessageNotify(TArray<unsigned char> Message, TLBase
 		break;
 	}
 #pragma endregion
+	return true;
+}
+
+TArray<uint8> test_inflate(Byte *Compressed, uLong CompressedSize, Byte  *Uncompressed, uLong UncompressedSize)
+{
+	//MTPstring packed;
+//	packed.read(from, end); // read packed string as serialized mtp string type
+	uint32 packedLen = CompressedSize, unpackedChunk = packedLen;
+	TArray<uint8> result; // * 4 because of mtpPrime type
+//	result.resize(0);
+
+	z_stream stream;
+	stream.zalloc = 0;
+	stream.zfree = 0;
+	stream.opaque = 0;
+	stream.avail_in = 0;
+	stream.next_in = 0;
+	int res = inflateInit2(&stream, 16 + MAX_WBITS);
+	if (res != Z_OK) {
+		UE_LOG(LogTemp, Error, TEXT("Decompression error"));
+	}
+	stream.avail_in = packedLen;
+	stream.next_in = reinterpret_cast<Bytef*>(Compressed);
+	stream.avail_out = unpackedChunk * 4;
+	while (stream.avail_out != 0 && (res == Z_STREAM_END))
+	{
+		result.AddZeroed(result.Num() + unpackedChunk);
+		stream.avail_out = unpackedChunk * 4;
+		stream.next_out = (Bytef*)&result[result.Num() - unpackedChunk];
+		int res = inflate(&stream, Z_NO_FLUSH);
+		if (res != Z_OK && res != Z_STREAM_END) 
+		{
+			inflateEnd(&stream);
+			UE_LOG(LogTemp, Error, TEXT("Decompression error"));
+		}
+	}
+	if (stream.avail_out & 0x03) 
+	{
+		uint32 badSize = result.Num() * sizeof(int32) - stream.avail_out;
+		UE_LOG(LogTemp, Error, TEXT("Bad length %d"), badSize);
+	}
+	//result.resize(result.size() - (stream.avail_out >> 2));
+	inflateEnd(&stream);
+
+	// 	if (!result.size()) {
+	// 		throw Exception("ungzip void data");
+	//		}
+	// 	const mtpPrime *newFrom = result.constData(), *newEnd = result.constData() + result.size();
+	// 	to.add("[GZIPPED] "); mtpTextSerializeType(to, newFrom, newEnd, 0, level);
+	return result;
+}
+
+bool MTProtoSender::HandleRPCResult(TArray<unsigned char> Message, TLBaseObject &Request)
+{
+// self._logger.debug('Handling RPC result')
+// 	reader.read_int(signed = False)  # code
+// 	request_id = reader.read_long()
+// 	inner_code = reader.read_int(signed = False)
+// 
+// 	try :
+// 	request = next(r for r in self._pending_receive
+// 		if r.request_msg_id == request_id)
+// 
+// 	request.confirm_received = True
+// 			except StopIteration :
+// request = None
+	BinaryReader Reader(Message.GetData(), Message.Num());
+	int32 Code = Reader.ReadInt();
+	uint64 RequestID = Reader.ReadLong();
+	uint32 InnerCode = Reader.ReadInt();
+
+	for (TLBaseObject * ConfirmMessage : ClientMessagesNeedAcknowledges)
+	{
+		if (RequestID == ConfirmMessage->GetRequestMessageID())
+		{
+			ConfirmMessage->SetConfirmReceived(true);
+			break;
+		}
+	}
+
+	if (InnerCode == 0x2144ca19) //RPC Error
+	{
+		uint32 ErrorLength = Reader.ReadInt();
+		FString Error = Reader.TGReadString();
+		ServerMessagesNeedAcknowledges.Add(RequestID);
+		SendAcknowledges();
+		Request.SetConfirmReceived(false);
+	}
+
+	if (InnerCode == 0x3072cfa1) //GZip packed
+	{
+		const uint32 CHUNK = 16384;
+		TArray<uint8> CompressedData;
+		TArray<uint8> DecompressedData;
+		CompressedData = Reader.TGReadBytes();
+// 		int32 ret;
+// 		uint32 have;
+// 		z_stream stream;
+		unsigned char out[CHUNK];
+		unsigned long UncompressLen = CompressedData.Num() * 4;
+// 		stream.zalloc = Z_NULL;
+// 		stream.zfree = Z_NULL;
+// 		stream.opaque = Z_NULL;
+// 		stream.avail_in = 0;
+// 		stream.next_in = Z_NULL;
+// 		ret = inflateInit(&stream);
+//		ret = UncompressData(CompressedData.GetData(), CompressedData.Num(), out, CHUNK);
+//		ret = uncompress((Bytef *)out, &UncompressLen, (Bytef *)CompressedData.GetData(), CompressedData.Num());
+		auto Result = test_inflate( CompressedData.GetData(), CompressedData.Num(), out, UncompressLen);;
+// 		if( ret != Z_DATA_ERROR)
+// 			UE_LOG(LogTemp, Error, TEXT("Decompression error"));
+// 		uint8 NextByte = 0;
+// 		if (ret == Z_OK)
+// 			do {
+// 				stream.avail_in = CompressedData.Num();
+// 				stream.next_in = CompressedData.GetData();
+// 				/* run inflate() on input until output buffer not full */
+// 				do {
+// 					stream.avail_out = CHUNK;
+// 					stream.next_out = out;
+// 					ret = inflate(&stream, Z_NO_FLUSH);
+// 					switch (ret) {
+// 					case Z_NEED_DICT:
+// 						ret = Z_DATA_ERROR;     /* and fall through */
+// 					case Z_DATA_ERROR:
+// 					case Z_MEM_ERROR:
+// 						(void)inflateEnd(&stream);
+// 						return ret;
+// 					}
+// 					have = CHUNK - stream.avail_out;
+// 				} while (stream.avail_out == 0);
+// 
+// 				/* done when inflate() says it's done */
+// 			} while (ret != Z_STREAM_END);
+// 
+// 		/* clean up and return */
+// 		(void)inflateEnd(&stream);
+// // 		for (uint32 i = 0; i < strlen((char *)out); i++)
+// // 			DecompressedData.Add(out[i]);
+// 		ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+
+		BinaryReader GzipReader((unsigned char *) Result.GetData(), Result.Num());
+		Request.OnResponce(GzipReader);
+	}
+	else
+	{
+		Reader.SetOffset(16);
+		Request.OnResponce(Reader);
+	}
+
 	return true;
 }
 
