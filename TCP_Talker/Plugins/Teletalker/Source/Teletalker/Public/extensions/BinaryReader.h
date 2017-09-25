@@ -25,7 +25,6 @@ public:
 	TArray<unsigned char> GetBytes(bool Flush = true);
 	TArray<unsigned char> TGReadBytes();
 	TLBaseObject * TGReadObject();
-	bool TGReadBool();
 	FString TGReadString();
 	bool ReadBool();
 	double ReadDouble();

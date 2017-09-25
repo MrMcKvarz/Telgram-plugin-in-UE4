@@ -42,7 +42,8 @@ public class Teletalker : ModuleRules
                 "Networking",
                 "OpenSSL",
                 "Json",
-                "JsonUtilities"
+                "JsonUtilities",
+                "zlib"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

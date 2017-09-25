@@ -104,10 +104,10 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 	int32 length;
 	int32 padding;
 	TArray<uint8> data;
-	auto FirstByte = this->ReadByte();
+	unsigned char FirstByte = this->ReadByte();
 	if(FirstByte >= 254)
 	{
-		length = this->ReadByte() | (this->ReadByte() << 8) | (this->ReadByte() << 16);
+		length = this->ReadByte() + (this->ReadByte() << 8) + (this->ReadByte() << 16) - 1;
 		padding = length % 4;
 
 	}
@@ -127,25 +127,6 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 
 TLBaseObject* BinaryReader::TGReadObject()
 {
-// constructor_id = self.read_int(signed = False)
-// 	clazz = tlobjects.get(constructor_id, None)
-// 	if clazz is None :
-// # The class was None, but there's still a
-// 	# chance of it being a manually parsed value like bool!
-// 	value = constructor_id
-// 	if value == 0x997275b5:  # boolTrue
-// 		return True
-// 		elif value == 0xbc799737:  # boolFalse
-// 		return False
-// 
-// 		# If there was still no luck, give up
-// 		raise TypeNotFoundError(constructor_id)
-// 
-// 		# Create an empty instance of the class and
-// 		# fill it with the read attributes
-// 		result = clazz.empty()
-// 		result.on_response(self)
-// 		return result
 	uint32 ConstructorID = ReadInt();
 	TLBaseObject * Result = TLObjects()[ConstructorID];
 	if (Result == nullptr) 
@@ -156,19 +137,28 @@ TLBaseObject* BinaryReader::TGReadObject()
 	return Result;
 }
 
-bool BinaryReader::TGReadBool()
-{
-	return true;
-}
 
 FString BinaryReader::TGReadString()
 {
-	return "";
+// 	auto UTF8Value = TCHAR_TO_UTF8(*Value);
+// 	return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
+
+	auto String = TGReadBytes();
+	FString Result;
+	for (auto Letter : String)
+		Result.AppendChar(Letter);
+	return Result;// .Reverse();
 }
 
 bool BinaryReader::ReadBool()
 {
-	return true;
+	uint32 BoolCode = ReadInt();
+	bool Result = false;
+	if (BoolCode == 0x997275b5)
+		Result = true;
+	if (BoolCode == 0xbc799737)
+		Result = false;
+	return Result;
 }
 
 double BinaryReader::ReadDouble()
@@ -178,7 +168,8 @@ double BinaryReader::ReadDouble()
 
 FDateTime BinaryReader::TGReadDate()
 {
-	return FDateTime::Now();
+	uint32 DateValue = ReadInt();
+	return FDateTime::FromUnixTimestamp(DateValue);
 }
 
 TBigInt<128> BinaryReader::Read128Int()
