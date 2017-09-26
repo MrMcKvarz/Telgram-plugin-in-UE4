@@ -6,6 +6,8 @@ TLBaseObject::TLBaseObject()
 	RequestMessageID = 0;
 	Dirty = false;
 	ConfirmReceived = false;
+	 _ContentRelated = false;
+	_Responded = false;
 }
 
 void TLBaseObject::OnSendSuccess()

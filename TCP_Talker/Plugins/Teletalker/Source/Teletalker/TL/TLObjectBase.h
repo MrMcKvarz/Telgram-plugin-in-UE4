@@ -7,7 +7,7 @@
 // class BinaryWriter;
 // class BinaryReader;
 
-class TLBaseObject 
+class TLBaseObject
 {
 public:
 
@@ -16,20 +16,14 @@ public:
 	void OnConfirm();
 	bool NeedResend();
 
-// 	virtual void DoDict()
-// 	{
-// 
-// 	}
+	// 	virtual void DoDict()
+	// 	{
+	// 
+	// 	}
 
-	virtual void OnSend(BinaryWriter& Writer)
-	{
-
-	}
-
-	virtual void OnResponce(BinaryReader& Reader)
-	{
-
-	}
+	virtual void OnSend(BinaryWriter& Writer) {}
+	virtual void OnResponce(BinaryReader& Reader) {}
+	virtual TLBaseObject * GetResult() { return this; }
 
 protected:
 	uint32 _ConstructorID;

@@ -8,9 +8,7 @@
 
 /*TL objects*/
 //#include "../TL/AllObjects.h"
-#include "TL/Functions/HELP/Public/GetConfig.h"
-#include "TL/Functions/COMMON/Public/InitConnection.h"
-#include "TL/Functions/COMMON/Public/InvokeWithLayer.h"
+#include "../TL/AllObjects.h"
 #include "TL/TLObjectBase.h"
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
@@ -26,6 +24,11 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 	API_ID = API_id;
 	API_Hash = API_hash;
 	ClientSession->Load();	
+}
+
+TelegramClient::~TelegramClient()
+{
+	delete Sender;
 }
 
 bool TelegramClient::Connect()
@@ -52,18 +55,19 @@ bool TelegramClient::Connect()
 		ClientSession->GetLangPack(), ClientSession->GetLangCode(), &ConfigRequest);
 	COMMON::InvokeWithLayer InvokeWithLayerRequest(71, &InitRequest);
 
-	MTProtoSender Sender(&Transport, ClientSession);
+	Sender = new MTProtoSender(&Transport, ClientSession);
 
-	int32 InitSent = Sender.Send(InvokeWithLayerRequest);
-  	auto Recv = Sender.Receive(InvokeWithLayerRequest);
+	auto ConfigResult = reinterpret_cast<COMMON::Config*>(Invoke(InvokeWithLayerRequest));
 
-// 	BinaryWriter StringWriter;
-// 	StringWriter.TGWriteString(FString("192.168.15.46"));
-// 	BinaryReader StringReader(StringWriter.GetBytes().GetData(), StringWriter.GetWrittenBytesCount());
-// 	FString Result = StringReader.TGReadString();
+	auto DCOptions = ConfigResult->dc_options;
 
-// 	BinaryReader NEwReader(Recv.GetData(), Recv.Num());
-// 	uint32 BadResponse = NEwReader.ReadInt();
+	COMMON::InputUserSelf InputUser;
+	TArray<TLBaseObject*> UserVector;
+	UserVector.Add(&InputUser);
+	USERS::GetUsers IsAuthorized(UserVector);
+
+	auto IsAuthorizedResult = reinterpret_cast<COMMON::Config*>(Invoke(IsAuthorized));
+
 
 // 	if (ClientSession->Save())
 // 		UE_LOG(LogTemp, Warning, TEXT("Session prob saved 2"));
@@ -71,10 +75,11 @@ bool TelegramClient::Connect()
 	return true;
 }
 
-bool TelegramClient::Invoke(TLBaseObject &Request)
+TLBaseObject * TelegramClient::Invoke(TLBaseObject &Request)
 {
-	//if()
-	return true;
+	int32 InitSent = Sender->Send(Request);
+	Sender->Receive(Request);
+	return Request.GetResult();
 }
 
 

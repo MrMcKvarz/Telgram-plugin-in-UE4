@@ -34,7 +34,7 @@ TArray<unsigned char> MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return TArray<unsigned char>();
 	TArray<unsigned char> Received;
-	while(Message.IsResponded())
+	while(!Message.IsConfirmReceived() || !Message.IsResponded())
 	{
 		auto Response = Transport->Receive();
 		auto Decoded = DecodeMessage(Response);
@@ -338,7 +338,7 @@ TArray<uint8> test_inflate(Byte *Compressed, uLong CompressedSize, Byte  *Uncomp
 	uint32 packedLen = CompressedSize, unpackedChunk = packedLen;
 	TArray<uint8> result; // * 4 because of mtpPrime type
 //	result.resize(0);
-
+	uint8 Decompressed[16948];
 	z_stream stream;
 	stream.zalloc = 0;
 	stream.zfree = 0;
@@ -351,12 +351,12 @@ TArray<uint8> test_inflate(Byte *Compressed, uLong CompressedSize, Byte  *Uncomp
 	}
 	stream.avail_in = packedLen;
 	stream.next_in = reinterpret_cast<Bytef*>(Compressed);
-	stream.avail_out = unpackedChunk * 4;
-	while (stream.avail_out != 0 && (res == Z_STREAM_END))
+	stream.avail_out = 0;
+	while (!stream.avail_out)
 	{
-		result.AddZeroed(result.Num() + unpackedChunk);
+/*		result.AddZeroed(result.Num() + unpackedChunk);*/
 		stream.avail_out = unpackedChunk * 4;
-		stream.next_out = (Bytef*)&result[result.Num() - unpackedChunk];
+		stream.next_out = (Bytef*)&Decompressed[0];
 		int res = inflate(&stream, Z_NO_FLUSH);
 		if (res != Z_OK && res != Z_STREAM_END) 
 		{
@@ -369,7 +369,11 @@ TArray<uint8> test_inflate(Byte *Compressed, uLong CompressedSize, Byte  *Uncomp
 		uint32 badSize = result.Num() * sizeof(int32) - stream.avail_out;
 		UE_LOG(LogTemp, Error, TEXT("Bad length %d"), badSize);
 	}
-	//result.resize(result.size() - (stream.avail_out >> 2));
+	//result.AddZeroed(result.Num() - (stream.avail_out >> 2));
+	result.Reserve(stream.total_out);
+	for (uLong i = 0; i < stream.total_out; i++)
+		result.Add(Decompressed[i]);
+	//result.resize();
 	inflateEnd(&stream);
 
 	// 	if (!result.size()) {
@@ -423,51 +427,9 @@ bool MTProtoSender::HandleRPCResult(TArray<unsigned char> Message, TLBaseObject 
 		TArray<uint8> CompressedData;
 		TArray<uint8> DecompressedData;
 		CompressedData = Reader.TGReadBytes();
-// 		int32 ret;
-// 		uint32 have;
-// 		z_stream stream;
 		unsigned char out[CHUNK];
 		unsigned long UncompressLen = CompressedData.Num() * 4;
-// 		stream.zalloc = Z_NULL;
-// 		stream.zfree = Z_NULL;
-// 		stream.opaque = Z_NULL;
-// 		stream.avail_in = 0;
-// 		stream.next_in = Z_NULL;
-// 		ret = inflateInit(&stream);
-//		ret = UncompressData(CompressedData.GetData(), CompressedData.Num(), out, CHUNK);
-//		ret = uncompress((Bytef *)out, &UncompressLen, (Bytef *)CompressedData.GetData(), CompressedData.Num());
 		auto Result = test_inflate( CompressedData.GetData(), CompressedData.Num(), out, UncompressLen);;
-// 		if( ret != Z_DATA_ERROR)
-// 			UE_LOG(LogTemp, Error, TEXT("Decompression error"));
-// 		uint8 NextByte = 0;
-// 		if (ret == Z_OK)
-// 			do {
-// 				stream.avail_in = CompressedData.Num();
-// 				stream.next_in = CompressedData.GetData();
-// 				/* run inflate() on input until output buffer not full */
-// 				do {
-// 					stream.avail_out = CHUNK;
-// 					stream.next_out = out;
-// 					ret = inflate(&stream, Z_NO_FLUSH);
-// 					switch (ret) {
-// 					case Z_NEED_DICT:
-// 						ret = Z_DATA_ERROR;     /* and fall through */
-// 					case Z_DATA_ERROR:
-// 					case Z_MEM_ERROR:
-// 						(void)inflateEnd(&stream);
-// 						return ret;
-// 					}
-// 					have = CHUNK - stream.avail_out;
-// 				} while (stream.avail_out == 0);
-// 
-// 				/* done when inflate() says it's done */
-// 			} while (ret != Z_STREAM_END);
-// 
-// 		/* clean up and return */
-// 		(void)inflateEnd(&stream);
-// // 		for (uint32 i = 0; i < strlen((char *)out); i++)
-// // 			DecompressedData.Add(out[i]);
-// 		ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
 
 		BinaryReader GzipReader((unsigned char *) Result.GetData(), Result.Num());
 		Request.OnResponce(GzipReader);
