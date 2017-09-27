@@ -4,10 +4,12 @@
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
 #include "MTProtoSender.h"
-/*#include "crypto/AuthKey.h"*/
+#include <typeinfo> 
+/*prob should not be here*/
+#include <exception>
+#include <system_error>
 
 /*TL objects*/
-//#include "../TL/AllObjects.h"
 #include "../TL/AllObjects.h"
 #include "TL/TLObjectBase.h"
 #define UI UI_ST
@@ -28,7 +30,7 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 
 TelegramClient::~TelegramClient()
 {
-	delete Sender;
+	//delete Sender;
 }
 
 bool TelegramClient::Connect()
@@ -57,16 +59,32 @@ bool TelegramClient::Connect()
 
 	Sender = new MTProtoSender(&Transport, ClientSession);
 
-	auto ConfigResult = reinterpret_cast<COMMON::Config*>(Invoke(InvokeWithLayerRequest));
 
-	auto DCOptions = ConfigResult->dc_options;
+	Invoke(InvokeWithLayerRequest);
+	auto ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest.GetResult());
+
+ 	auto DCOptions = ConfigResult->GetDcOptions();
 
 	COMMON::InputUserSelf InputUser;
 	TArray<TLBaseObject*> UserVector;
 	UserVector.Add(&InputUser);
 	USERS::GetUsers IsAuthorized(UserVector);
+	
+	bool IsUserAuthorized;
+	try
+	{
+		Invoke(IsAuthorized);
+	}
+	catch (const std::system_error)
+	{
+		IsUserAuthorized = false;
+	}
+	if (!IsUserAuthorized)
+	{
+		AUTH::SendCode SendCodeRequest(false,FString("+380668816402"), false, API_ID, API_Hash);
+		Invoke(SendCodeRequest);
 
-	auto IsAuthorizedResult = reinterpret_cast<COMMON::Config*>(Invoke(IsAuthorized));
+	}
 
 
 // 	if (ClientSession->Save())
@@ -77,6 +95,7 @@ bool TelegramClient::Connect()
 
 TLBaseObject * TelegramClient::Invoke(TLBaseObject &Request)
 {
+	//auto wrtf = typeid(Request).name();
 	int32 InitSent = Sender->Send(Request);
 	Sender->Receive(Request);
 	return Request.GetResult();

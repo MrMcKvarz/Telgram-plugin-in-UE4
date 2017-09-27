@@ -25,6 +25,8 @@ public:
 	virtual void OnResponce(BinaryReader& Reader) {}
 	virtual TLBaseObject * GetResult() { return this; }
 
+	
+
 protected:
 	uint32 _ConstructorID;
 	bool _ContentRelated;

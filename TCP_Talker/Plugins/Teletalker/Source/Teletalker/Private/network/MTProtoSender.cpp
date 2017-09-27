@@ -10,6 +10,9 @@
 #include "crypto/Crypto.h"
 #include "../../TL/AllObjects.h"
 #include <zlib.h>
+/*prob should not be here*/
+#include <exception>
+#include <system_error>
 
 
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
@@ -146,7 +149,7 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 			COMMON::MsgsAck* MessageAck = reinterpret_cast<COMMON::MsgsAck*>(Ack);
 			for (TLBaseObject * ConfirmMessage : ClientMessagesNeedAcknowledges)
 			{
-				for(uint64 Confirmation : MessageAck->msg_ids)
+				for(uint64 Confirmation : MessageAck->GetMsgIds())
 					if (Confirmation == ConfirmMessage->GetRequestMessageID())
 						ConfirmMessage->SetConfirmReceived(true);
 			}
@@ -419,6 +422,12 @@ bool MTProtoSender::HandleRPCResult(TArray<unsigned char> Message, TLBaseObject 
 		ServerMessagesNeedAcknowledges.Add(RequestID);
 		SendAcknowledges();
 		Request.SetConfirmReceived(false);
+		/*Bad code area*/
+		//TODO Handle AUTH_KEY_UNREGISTERED and MIGRATE_PHONE_X
+		if (Error == L"AUTH_KEY_UNREGISTERED")
+			throw(std::system_error(EDOM, std::generic_category()));
+		return false;
+
 	}
 
 	if (InnerCode == 0x3072cfa1) //GZip packed

@@ -16,4 +16,6 @@ public:
 	~TelegramClient();
 	bool Connect();
 	TLBaseObject * Invoke(TLBaseObject &Request);
+
+	
 };

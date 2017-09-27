@@ -2,7 +2,7 @@
 #include "../../TL/TLObjectBase.h"
 #include "../../TL/AllObjects.h"
 
-BinaryReader::BinaryReader(const unsigned char * Data, int Size)
+BinaryReader::BinaryReader(const unsigned char * Data, int32 Size)
 {
 	if (Data != nullptr && Size > 0)
 	{
@@ -31,9 +31,23 @@ unsigned char BinaryReader::ReadByte()
 	return 0;
 }
 
-int BinaryReader::ReadInt()
+int32 BinaryReader::ReadBigInt()
 {
-	int result = 0;
+	int32 result = 0;
+	if (Offset < Size)
+	{
+		unsigned char * bits = (unsigned char *)Buff.GetData();
+		/*read little endian*/
+		for (int n = Offset; n < Offset + 4; n++)
+			result = (result << 8) + bits[n];
+		Offset += 4;
+	}
+	return result;
+}
+
+int32 BinaryReader::ReadInt()
+{
+	int32 result = 0;
 	if (Offset < Size)
 	{
 		unsigned char * bits = (unsigned char *) Buff.GetData();
@@ -59,7 +73,7 @@ signed long long BinaryReader::ReadLong()
 	return result;
 }
 
-TArray<unsigned char> BinaryReader::Read(int Size)
+TArray<unsigned char> BinaryReader::Read(int32 Size)
 {
 	int result = 0;
 	TArray<unsigned char> Temp;
@@ -107,7 +121,7 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 	unsigned char FirstByte = this->ReadByte();
 	if(FirstByte >= 254)
 	{
-		length = this->ReadByte() + (this->ReadByte() << 8) + (this->ReadByte() << 16) - 1;
+		length = this->ReadByte() + (this->ReadByte() << 8) + (this->ReadByte() << 16);
 		padding = length % 4;
 
 	}

@@ -119,6 +119,7 @@ bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 
 bool BinaryWriter::TGWriteString(FString Value)
 {
+	Value = Value.Reverse();
 	auto UTF8Value = TCHAR_TO_UTF8(*Value);
 	return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
 }
