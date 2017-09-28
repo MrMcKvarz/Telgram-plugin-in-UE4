@@ -1,8 +1,10 @@
 #pragma once 
 #include "Engine.h"
 
+
 class Session;
 class TLBaseObject;
+
 
 class TelegramClient
 {
@@ -10,12 +12,13 @@ class TelegramClient
 	int32 API_ID;
 	FString API_Hash;
 
+
 	MTProtoSender * Sender;
 public:
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
 	~TelegramClient();
 	bool Connect();
-	TLBaseObject * Invoke(TLBaseObject &Request);
+	bool Invoke(TLBaseObject &Request);
 
 	
 };

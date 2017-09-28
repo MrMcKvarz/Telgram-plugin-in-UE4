@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine.h"
 #include "AuthKey.h"
+#include "../../TL/Types/COMMON/Public/DcOption.h"
 
 class Session
 {
@@ -21,13 +22,14 @@ class Session
 
 	FString UserID;
 	FString SessionFilePath;
+
 public:
 	Session(FString SessionUserdID);
 	bool Save();
 	bool Load();
 	bool Delete();
 	
-
+	TArray<COMMON::DcOption*> DCOptions;
 
 	/*get/set area*/
 	FString GetServerAddress() { return ServerAddress; }

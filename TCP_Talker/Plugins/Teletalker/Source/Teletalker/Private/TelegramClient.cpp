@@ -8,7 +8,8 @@
 /*prob should not be here*/
 #include <exception>
 #include <system_error>
-
+#include <chrono>
+#include <thread>
 /*TL objects*/
 #include "../TL/AllObjects.h"
 #include "TL/TLObjectBase.h"
@@ -30,7 +31,8 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 
 TelegramClient::~TelegramClient()
 {
-	//delete Sender;
+	if(Sender)
+		delete Sender;
 }
 
 bool TelegramClient::Connect()
@@ -61,9 +63,9 @@ bool TelegramClient::Connect()
 
 
 	Invoke(InvokeWithLayerRequest);
-	auto ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest.GetResult());
+	COMMON::Config* ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest.GetResult());
 
- 	auto DCOptions = ConfigResult->GetDcOptions();
+	ClientSession->DCOptions = ConfigResult->GetDcOptions();
 
 	COMMON::InputUserSelf InputUser;
 	TArray<TLBaseObject*> UserVector;
@@ -79,11 +81,22 @@ bool TelegramClient::Connect()
 	{
 		IsUserAuthorized = false;
 	}
+	FString PhoneNumber = FString("9996621234");
 	if (!IsUserAuthorized)
 	{
-		AUTH::SendCode SendCodeRequest(false,FString("+380668816402"), false, API_ID, API_Hash);
-		Invoke(SendCodeRequest);
-
+// 		AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
+// 		Invoke(SendCodeRequest);
+// 		FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+// 		FString Path;
+// 		Path += FPaths::GamePluginsDir();
+// 		Path += "CrunchPower.txt";
+// 		FString PhoneCode;
+// 		(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
+// 		AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
+// 		Invoke(SingInRequest);
+// 		MESSAGES::GetDialogs GetDialogRequest(false, FDateTime(),0,new PRIVATE::InputPeer(),10);
+// 		Invoke(GetDialogRequest);
+// 		auto GetDialogResult = GetDialogRequest.GetResult();
 	}
 
 
@@ -93,12 +106,13 @@ bool TelegramClient::Connect()
 	return true;
 }
 
-TLBaseObject * TelegramClient::Invoke(TLBaseObject &Request)
+bool TelegramClient::Invoke(TLBaseObject &Request)
 {
 	//auto wrtf = typeid(Request).name();
+	if (!Request.IsContentRelated()) return false;
 	int32 InitSent = Sender->Send(Request);
 	Sender->Receive(Request);
-	return Request.GetResult();
+	return true;
 }
 
 

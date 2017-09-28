@@ -31,10 +31,10 @@ THIRD_PARTY_INCLUDES_END
 #undef UI
 
 
-int64 GetInt64Big(unsigned char * Value)
+int64 GetInt64Big(uint8 * Value)
 {
 	if (Value == nullptr) return 0;
-	long long result = 0;
+	int64 result = 0;
 
 	for (int n = 0; n < 8; n++)
 		result = (result << 8) + Value[n];
@@ -79,33 +79,33 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 	BinaryWriter PQWriter;
 	BinaryWriter HashWriter;
 	PQWriter.WriteInt(0x60469778);
-	unsigned char Buff[16];
+	uint8 Buff[16];
 	int32 Random = RAND_bytes(Buff, 16);
 	PQWriter.Write(Buff, 16);
 	HashWriter.Write(Buff, 16);
 
-	TArray<unsigned char> bytes = PQWriter.GetBytes();
+	TArray<uint8> bytes = PQWriter.GetBytes();
 	int32 bytessent = Sender.Send(bytes.GetData(), PQWriter.GetWrittenBytesCount());
 	
 	/*Response for (p,q) Authorization*/
-	BinaryReader PQReader((unsigned char *)Sender.Receive(84).GetData(), 64);
+	BinaryReader PQReader((uint8 *)Sender.Receive(84).GetData(), 64);
 	int32 PQConst = PQReader.ReadInt();
 	if (PQConst != 0x05162463)
 		UE_LOG(LogTemp, Error, TEXT("Invalid PQ Constructor"));
 
-	TArray<unsigned char> Nonce = PQReader.Read(16);
+	TArray<uint8> Nonce = PQReader.Read(16);
 
 	if (Nonce != HashWriter.GetBytes())
 		UE_LOG(LogTemp, Error, TEXT("Invalid nonce"));
 
-	TArray<unsigned char> ServerNonce = PQReader.Read(16);
-	TArray<unsigned char> PQBytes = PQReader.TGReadBytes();
+	TArray<uint8> ServerNonce = PQReader.Read(16);
+	TArray<uint8> PQBytes = PQReader.TGReadBytes();
 	int64 PQ = GetInt64Big(PQBytes.GetData());
 	int32 VectConst = PQReader.ReadInt();
 	if (VectConst != 0x1cb5c415)
 		UE_LOG(LogTemp, Error, TEXT("Invalid vector constructor"));
 	int32 FingerPrintsCount = PQReader.ReadInt();
-	TArray<unsigned char> Fingerprint = PQReader.Read(8);
+	TArray<uint8> Fingerprint = PQReader.Read(8);
 
 	/*Generate encrypted data*/
 	BinaryWriter DataWriter;
@@ -118,26 +118,26 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 
  	int32 Min = FMath::Min(Factor, Factor2);
  	int32 Max = FMath::Max(Factor, Factor2);
-	DataWriter.TGWriteBytes((unsigned char *)&Min, 4);
-	DataWriter.TGWriteBytes((unsigned char *)&Max, 4);
+	DataWriter.TGWriteBytes((uint8 *)&Min, 4);
+	DataWriter.TGWriteBytes((uint8 *)&Max, 4);
 	DataWriter.Write(Nonce.GetData(), Nonce.Num());
 	DataWriter.Write(ServerNonce.GetData(), ServerNonce.Num());
 
-	unsigned char RandBytes[32];
+	uint8 RandBytes[32];
 	RAND_bytes(RandBytes, 32);
 	DataWriter.Write(RandBytes, 32);
-	TArray<unsigned char> NewNonce;
+	TArray<uint8> NewNonce;
 	NewNonce.Reserve(32);
-	for (int i = 0; i < 32; i++)
+	for (int32 i = 0; i < 32; i++)
 		NewNonce.Add(RandBytes[i]);
 
 	/*Prepare data for RSA encrypt*/
-	unsigned char SHAResult[20];
-	SHA1((unsigned char *)DataWriter.GetBytes().GetData(), DataWriter.GetWrittenBytesCount(), SHAResult);
+	uint8 SHAResult[20];
+	SHA1((uint8 *)DataWriter.GetBytes().GetData(), DataWriter.GetWrittenBytesCount(), SHAResult);
 	BinaryWriter EncDataWriter;
 	EncDataWriter.Write(SHAResult, 20);
 	EncDataWriter.Write(DataWriter.GetBytes().GetData(), DataWriter.GetWrittenBytesCount());
-	unsigned char Trash[512];
+	uint8 Trash[512];
 	int32 TrashSize = 255 - EncDataWriter.GetWrittenBytesCount();
 	RAND_bytes(Trash, TrashSize);
 	EncDataWriter.Write(Trash, TrashSize);
@@ -163,16 +163,16 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 
 	//Request to start Diffie-Hellman key exchange
 	BinaryWriter DHWriter;
-	unsigned char CipherData[256];
+	uint8 CipherData[256];
 
 	DHWriter.WriteInt(0xd712e4be);
  	DHWriter.Write(Nonce.GetData(), Nonce.Num());
 
  	DHWriter.Write(ServerNonce.GetData(), ServerNonce.Num());
 
-	DHWriter.TGWriteBytes((unsigned char *)&Min, 4);
+	DHWriter.TGWriteBytes((uint8 *)&Min, 4);
 
-	DHWriter.TGWriteBytes((unsigned char *)&Max, 4);
+	DHWriter.TGWriteBytes((uint8 *)&Max, 4);
 	DHWriter.Write(Fingerprint.GetData(), 8);
 
 	BN_bn2bin(encrypted, CipherData);
@@ -190,16 +190,16 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 	if(ServerNonce != DHReader.Read(16))
 		UE_LOG(LogTemp, Error, TEXT("ServeNonce failed"));
 
-	TArray<unsigned char> Key, IV;
-	unsigned char Answer[1024];
+	TArray<uint8> Key, IV;
+	uint8 Answer[1024];
 	GenerateKeyDataFromNonce(NewNonce, ServerNonce,/*out*/ Key, /*out*/ IV);
 
 	AES_KEY DecryptAESKey;
 	/*WARNING: unlike other OpenSSL functions, this returns zero on success and a negative number on error */
 	AES_set_decrypt_key(Key.GetData(), 256, &DecryptAESKey);
 
-	auto EncryptedAnswer = DHReader.TGReadBytes();
-	TArray<unsigned char> IV2;
+	TArray<uint8> EncryptedAnswer = DHReader.TGReadBytes();
+	TArray<uint8> IV2;
 	IV2 = IV;
 	const size_t encslength = ((EncryptedAnswer.Num() + AES_BLOCK_SIZE) / AES_BLOCK_SIZE) * AES_BLOCK_SIZE;
 	AES_ige_encrypt(EncryptedAnswer.GetData(), Answer, encslength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
@@ -221,7 +221,7 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 	int32 ServerTime = DHInnerDataReader.ReadInt();
 
 	BIGNUM * b = BN_new();
-	unsigned char BHash[256];
+	uint8 BHash[256];
 	RAND_bytes(BHash, 256);
 	BN_bin2bn(BHash, 256, b);
 
@@ -232,7 +232,7 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 	BN_bin2bn(GA.GetData(), GA.Num(), ga);
 
 	BIGNUM * g = BN_new();
-	BN_bin2bn((unsigned char *)(&G), 1, g);
+	BN_bin2bn((uint8 *)(&G), 1, g);
 	BIGNUM * gb = BN_new();
 	BIGNUM * gab = BN_new();
 
@@ -241,10 +241,10 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 
 	int32 IsGBDH = BN_mod_exp(gb, g, b, dh_prime, BNCTXGBDH);
 	int32 IsGABDH = BN_mod_exp(gab, ga, b, dh_prime, BNCTXGABDH); //calculating auth key
-	unsigned char gbBytes[256];
+	uint8 gbBytes[256];
 	if(!BN_bn2bin(gb, gbBytes))
 		UE_LOG(LogTemp, Error, TEXT("Failed BIGNUM conversion"));
-	unsigned char gabBytes[256];
+	uint8 gabBytes[256];
 	if (!BN_bn2bin(gab, gabBytes))
 	if((IsGBDH && IsGABDH))
 		UE_LOG(LogTemp, Error, TEXT("Computation Ok"));
@@ -258,7 +258,7 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 	DHInnerDataWriter.TGWriteBytes(gbBytes, 256);
 
 	BinaryWriter DHInnerEncDataWriter;
-	unsigned char SHADHInner[20];
+	uint8 SHADHInner[20];
 	SHA1(DHInnerDataWriter.GetBytes().GetData(), DHInnerDataWriter.GetWrittenBytesCount(), SHADHInner);
 	DHInnerEncDataWriter.Write(SHADHInner, 20);
 	DHInnerEncDataWriter.Write(DHInnerDataWriter.GetBytes().GetData(), DHInnerDataWriter.GetWrittenBytesCount());
@@ -272,12 +272,12 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 	AES_KEY EncryptAESKey;
 	if ((AES_set_encrypt_key(Key.GetData(), 256, &EncryptAESKey) != 0))
 		UE_LOG(LogTemp, Error, TEXT("Error setting encrypt key"));
-	unsigned char DH_AESEncrypted[336];
+	uint8 DH_AESEncrypted[336];
 	if (DHInnerEncDataWriter.GetWrittenBytesCount() % 16 != 0)
 		UE_LOG(LogTemp, Error, TEXT("AES encrypt data size not divisible by 16"));
 
 	const size_t InputLength = DHInnerEncDataWriter.GetWrittenBytesCount();
-	AES_ige_encrypt((unsigned char *)DHInnerEncDataWriter.GetBytes().GetData(), DH_AESEncrypted, InputLength, &EncryptAESKey, IV2.GetData(), AES_ENCRYPT);
+	AES_ige_encrypt((uint8 *)DHInnerEncDataWriter.GetBytes().GetData(), DH_AESEncrypted, InputLength, &EncryptAESKey, IV2.GetData(), AES_ENCRYPT);
 
 	BinaryWriter DHInnerRequestWriter;
 	DHInnerRequestWriter.WriteInt(0xf5045f1f);
@@ -295,35 +295,35 @@ AuthKey Authenticator::Authenticate(TCPTransport * Transport)
 		UE_LOG(LogTemp, Error, TEXT("Nonce failed"));
 	if (ServerNonce != DHCompleteReader.Read(16))
 		UE_LOG(LogTemp, Error, TEXT("ServeNonce failed"));
-	auto NewNonceHash1 = DHCompleteReader.Read(16);
+	TArray<uint8> NewNonceHash1 = DHCompleteReader.Read(16);
 
 	AuthKey NewKey(gabBytes);
 
-	auto NewNonceHashCheck = NewKey.CalculateNewNonceHash(NewNonce, 1);
+	TArray<uint8> NewNonceHashCheck = NewKey.CalculateNewNonceHash(NewNonce, 1);
 	if(NewNonceHash1 != NewNonceHashCheck)
 		UE_LOG(LogTemp, Error, TEXT("NewNonce hash check failed"));
 
 	return NewKey;
 }
 
-void Authenticator::GenerateKeyDataFromNonce(TArray<unsigned char> NewNonce, TArray<unsigned char> ServerNonce, TArray<unsigned char> &Key, TArray<unsigned char> &IV)
+void Authenticator::GenerateKeyDataFromNonce(TArray<uint8> NewNonce, TArray<uint8> ServerNonce, TArray<uint8> &Key, TArray<uint8> &IV)
 {
-	TArray<unsigned char> NewNServer;
+	TArray<uint8> NewNServer;
 	NewNServer += NewNonce;
 	NewNServer += ServerNonce;
 
-	TArray<unsigned char> ServerNNew;
+	TArray<uint8> ServerNNew;
 	ServerNNew += ServerNonce;
 	ServerNNew += NewNonce;
 
-	TArray<unsigned char> NewNNew;
+	TArray<uint8> NewNNew;
 	NewNNew += NewNonce;
 	NewNNew += NewNonce;
 
-	unsigned char Hash1[20], Hash2[20], Hash3[20];
-	SHA1((unsigned char *)NewNServer.GetData(), NewNServer.Num(), Hash1);
-	SHA1((unsigned char *)ServerNNew.GetData(), ServerNNew.Num(), Hash2);
-	SHA1((unsigned char *)NewNNew.GetData(), NewNNew.Num(), Hash3);
+	uint8 Hash1[20], Hash2[20], Hash3[20];
+	SHA1((uint8 *)NewNServer.GetData(), NewNServer.Num(), Hash1);
+	SHA1((uint8 *)ServerNNew.GetData(), ServerNNew.Num(), Hash2);
+	SHA1((uint8 *)NewNNew.GetData(), NewNNew.Num(), Hash3);
 
 	for (int32 i = 0; i < 20; i++)
 		Key.Add(Hash1[i]);

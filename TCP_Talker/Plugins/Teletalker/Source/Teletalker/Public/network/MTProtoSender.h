@@ -9,24 +9,26 @@ class TLBaseObject;
 class MTProtoSender : MTProtoPlainSender
 {
 	Session * MTSession;
-	TArray<unsigned long long> ServerMessagesNeedAcknowledges;
+	TArray<uint64> ServerMessagesNeedAcknowledges;
 	TArray<TLBaseObject*> ClientMessagesNeedAcknowledges;
 public:
 	MTProtoSender(TCPTransport * Transport, Session * NewSession);
 	int32 Send(TLBaseObject &Message); // TLObject
-	TArray<unsigned char> Receive(TLBaseObject &Message);
+	TArray<uint8> Receive(TLBaseObject &Message);
 
-
-	TArray<unsigned char> CalculateMessageKey(unsigned char * Data, int32 Size);
+	TArray<uint8> CalculateMessageKey(uint8 * Data, int32 Size);
 
 	bool Connect();
 private:
 	void SendAcknowledges();
 	int32 SendPacket(TLBaseObject &Message);
-	bool ProcessMessage(TArray<unsigned char> Message, TLBaseObject &Request);
-	TArray<unsigned char> DecodeMessage(TArray<unsigned char> Message);
-	bool HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObject &Request);
-	bool HandleMessageContainer(TArray<unsigned char> Message, TLBaseObject &Request);
-	bool HandleBadMessageNotify(TArray<unsigned char> Message, TLBaseObject &Request);
-	bool HandleRPCResult(TArray<unsigned char> Message, TLBaseObject &Request);
+	bool ProcessMessage(TArray<uint8> Message, TLBaseObject &Request);
+	TArray<uint8> DecodeMessage(TArray<uint8> Message);
+	bool HandleBadServerSalt(TArray<uint8> Message, TLBaseObject &Request);
+	bool HandleMessageContainer(TArray<uint8> Message, TLBaseObject &Request);
+	bool HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &Request);
+	bool HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request);
+	bool HandleGzipPacked(TArray<uint8> Message, TLBaseObject &Request);
+	bool HandlePong(TArray<uint8> Message, TLBaseObject &Request);
+	bool HandleRPCError(FString Message, TLBaseObject &Request);
 };

@@ -1,5 +1,6 @@
 #include "MTProtoSender.h"
 #include "network/TCPTransport.h"
+#include "Utilities.h"
 #define UI UI_ST
 #include "tl/Session.h"
 #include "openssl/sha.h"
@@ -33,10 +34,10 @@ int32 MTProtoSender::Send(TLBaseObject &Message)
 	return BytesSent;
 }
 
-TArray<unsigned char> MTProtoSender::Receive(TLBaseObject &Message)
+TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 {
-	if (Transport == nullptr) return TArray<unsigned char>();
-	TArray<unsigned char> Received;
+	if (Transport == nullptr) return TArray<uint8 >();
+	TArray<uint8 > Received;
 	while(!Message.IsConfirmReceived() || !Message.IsResponded())
 	{
 		auto Response = Transport->Receive();
@@ -51,11 +52,6 @@ void MTProtoSender::SendAcknowledges()
 	if (ServerMessagesNeedAcknowledges.Num() != 0)
 	{
 		COMMON::MsgsAck Acknowledge(ServerMessagesNeedAcknowledges);
-// 		Writer.WriteInt(0x62d6b459); // Message acknowledge constructor
-// 		Writer.WriteInt(0x1cb5c415); //Vector constructor
-// 		Writer.WriteInt(ServerMessagesNeedAcknowledges.Num());
-// 		for (uint64 Message : ServerMessagesNeedAcknowledges)
-// 			Writer.WriteLong(Message);
 		SendPacket(Acknowledge);
 		ServerMessagesNeedAcknowledges.Empty(1);
 	}
@@ -79,9 +75,9 @@ int32 MTProtoSender::SendPacket(TLBaseObject &Message)
 	PlainWriter.WriteInt(MessageLength);
 	PlainWriter.Write(MessageDataWriter.GetBytes().GetData(), MessageLength);
 
-	TArray<unsigned char> MessageKey = CalculateMessageKey(PlainWriter.GetBytes().GetData(), PlainWriter.GetWrittenBytesCount());
+	TArray<uint8 > MessageKey = CalculateMessageKey(PlainWriter.GetBytes().GetData(), PlainWriter.GetWrittenBytesCount());
 
-	TArray<unsigned char> Key, IV;
+	TArray<uint8 > Key, IV;
 	Crypto::CalculateKey(MTSession->GetAuthKey().GetKey(), MessageKey,/*out*/ Key,/*out*/ IV, true);
 	
 	AES_KEY EncryptAESKey;
@@ -95,8 +91,8 @@ int32 MTProtoSender::SendPacket(TLBaseObject &Message)
 		PlainWriter.Write(MessageKey.GetData(), DHEncDataPadding); //writing random(from data) padding bytes
 	}
 
-	unsigned char CipherText[2048];
-	AES_ige_encrypt((unsigned char *)PlainWriter.GetBytes().GetData(), CipherText, PlainWriter.GetWrittenBytesCount(), &EncryptAESKey, IV.GetData(), AES_ENCRYPT);
+	uint8 CipherText[2048];
+	AES_ige_encrypt((uint8 *)PlainWriter.GetBytes().GetData(), CipherText, PlainWriter.GetWrittenBytesCount(), &EncryptAESKey, IV.GetData(), AES_ENCRYPT);
 
 	BinaryWriter CipherWriter;
 	CipherWriter.WriteLong(MTSession->GetAuthKey().GetKeyID());
@@ -105,7 +101,7 @@ int32 MTProtoSender::SendPacket(TLBaseObject &Message)
 	return Transport->Send(CipherWriter.GetBytes().GetData(), CipherWriter.GetWrittenBytesCount());
 }
 
-bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &Request)
+bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request)
 {
 	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
@@ -124,13 +120,17 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 	}
 	if (Response == 0x347773c5)  // pong
 		UE_LOG(LogTemp, Warning, TEXT("pong"));
+
 	if (Response == 0x73f1f8dc)  // msg_container
 	{
 		UE_LOG(LogTemp, Warning, TEXT("msg container"));
 		return HandleMessageContainer(Message, Request);		
 	}
 	if (Response == 0x3072cfa1)  // gzip_packed
+	{
 		UE_LOG(LogTemp, Warning, TEXT("gzip packed"));
+		return HandleGzipPacked(Message, Request);
+	}
 	if (Response == 0xa7eff811)  // bad_msg_notification
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad msg notify"));
@@ -157,13 +157,6 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
 		return true;
 	}
 
-// if code in tlobjects :
-// result = reader.tgread_object()
-// 	if updates is None :
-// self._logger.debug('Ignored update for %s', repr(result))
-// 	else :
-// 	self._logger.debug('Read update for %s', repr(result))
-// 		updates.append(result)
 	if (TLObjects().Contains(Response))
 	{
 		MessageReader.SetOffset(0);
@@ -174,7 +167,7 @@ bool MTProtoSender::ProcessMessage(TArray<unsigned char> Message, TLBaseObject &
  	return false;
 }
 
-TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message)
+TArray<uint8 > MTProtoSender::DecodeMessage(TArray<uint8> Message)
 {
 	if(Message.Num() < 8) 
 		UE_LOG(LogTemp, Error, TEXT("Packet receive failure"));
@@ -183,9 +176,9 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	unsigned long long RemoteAuthID = Reader.ReadLong();
 	if(RemoteAuthID != MTSession->GetAuthKey().GetKeyID())
 		UE_LOG(LogTemp, Error, TEXT("Auth id from server is invalid"));
-	TArray<unsigned char> RemoteMessageKey = Reader.Read(16);
+	TArray<uint8 > RemoteMessageKey = Reader.Read(16);
 
-	TArray<unsigned char> Key, IV;
+	TArray<uint8 > Key, IV;
 	Crypto::CalculateKey(MTSession->GetAuthKey().GetKey(), RemoteMessageKey,/*out*/ Key,/*out*/ IV, false);
 
 	AES_KEY DecryptAESKey;
@@ -194,8 +187,8 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 
 	int32 PlainMessageLength = Reader.GetBytes().Num() - Reader.GetOffset();
 
-	unsigned char PlainText[2048];
-	AES_ige_encrypt((unsigned char *)Reader.Read(PlainMessageLength).GetData(), PlainText, PlainMessageLength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
+	uint8 PlainText[2048];
+	AES_ige_encrypt((uint8 *)Reader.Read(PlainMessageLength).GetData(), PlainText, PlainMessageLength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
 
 	BinaryReader PlainReader(PlainText, PlainMessageLength);
 	unsigned long long BadSalt = PlainReader.ReadLong(); // remote salt
@@ -209,7 +202,7 @@ TArray<unsigned char> MTProtoSender::DecodeMessage(TArray<unsigned char> Message
 	return RemoteMessage;
 }
 
-bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObject &Request)
+bool MTProtoSender::HandleBadServerSalt(TArray<uint8> Message, TLBaseObject &Request)
 {
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	int32 Code = Reader.ReadInt();
@@ -224,7 +217,7 @@ bool MTProtoSender::HandleBadServerSalt(TArray<unsigned char> Message, TLBaseObj
 	return true;
 }
 
-bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message, TLBaseObject &Request)
+bool MTProtoSender::HandleMessageContainer(TArray<uint8> Message, TLBaseObject &Request)
 {
 
 	BinaryReader Reader(Message.GetData(), Message.Num());
@@ -245,7 +238,7 @@ bool MTProtoSender::HandleMessageContainer(TArray<unsigned char> Message, TLBase
 	return true;
 }
 
-bool MTProtoSender::HandleBadMessageNotify(TArray<unsigned char> Message, TLBaseObject &Request)
+bool MTProtoSender::HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &Request)
 {
 // self._logger.debug('Handling bad message notification')
 // 	reader.read_int(signed = False)  # code
@@ -334,73 +327,9 @@ bool MTProtoSender::HandleBadMessageNotify(TArray<unsigned char> Message, TLBase
 	return true;
 }
 
-TArray<uint8> test_inflate(Byte *Compressed, uLong CompressedSize, Byte  *Uncompressed, uLong UncompressedSize)
+bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request)
 {
-	//MTPstring packed;
-//	packed.read(from, end); // read packed string as serialized mtp string type
-	uint32 packedLen = CompressedSize, unpackedChunk = packedLen;
-	TArray<uint8> result; // * 4 because of mtpPrime type
-//	result.resize(0);
-	uint8 Decompressed[16948];
-	z_stream stream;
-	stream.zalloc = 0;
-	stream.zfree = 0;
-	stream.opaque = 0;
-	stream.avail_in = 0;
-	stream.next_in = 0;
-	int res = inflateInit2(&stream, 16 + MAX_WBITS);
-	if (res != Z_OK) {
-		UE_LOG(LogTemp, Error, TEXT("Decompression error"));
-	}
-	stream.avail_in = packedLen;
-	stream.next_in = reinterpret_cast<Bytef*>(Compressed);
-	stream.avail_out = 0;
-	while (!stream.avail_out)
-	{
-/*		result.AddZeroed(result.Num() + unpackedChunk);*/
-		stream.avail_out = unpackedChunk * 4;
-		stream.next_out = (Bytef*)&Decompressed[0];
-		int res = inflate(&stream, Z_NO_FLUSH);
-		if (res != Z_OK && res != Z_STREAM_END) 
-		{
-			inflateEnd(&stream);
-			UE_LOG(LogTemp, Error, TEXT("Decompression error"));
-		}
-	}
-	if (stream.avail_out & 0x03) 
-	{
-		uint32 badSize = result.Num() * sizeof(int32) - stream.avail_out;
-		UE_LOG(LogTemp, Error, TEXT("Bad length %d"), badSize);
-	}
-	//result.AddZeroed(result.Num() - (stream.avail_out >> 2));
-	result.Reserve(stream.total_out);
-	for (uLong i = 0; i < stream.total_out; i++)
-		result.Add(Decompressed[i]);
-	//result.resize();
-	inflateEnd(&stream);
 
-	// 	if (!result.size()) {
-	// 		throw Exception("ungzip void data");
-	//		}
-	// 	const mtpPrime *newFrom = result.constData(), *newEnd = result.constData() + result.size();
-	// 	to.add("[GZIPPED] "); mtpTextSerializeType(to, newFrom, newEnd, 0, level);
-	return result;
-}
-
-bool MTProtoSender::HandleRPCResult(TArray<unsigned char> Message, TLBaseObject &Request)
-{
-// self._logger.debug('Handling RPC result')
-// 	reader.read_int(signed = False)  # code
-// 	request_id = reader.read_long()
-// 	inner_code = reader.read_int(signed = False)
-// 
-// 	try :
-// 	request = next(r for r in self._pending_receive
-// 		if r.request_msg_id == request_id)
-// 
-// 	request.confirm_received = True
-// 			except StopIteration :
-// request = None
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	int32 Code = Reader.ReadInt();
 	uint64 RequestID = Reader.ReadLong();
@@ -419,13 +348,14 @@ bool MTProtoSender::HandleRPCResult(TArray<unsigned char> Message, TLBaseObject 
 	{
 		uint32 ErrorLength = Reader.ReadInt();
 		FString Error = Reader.TGReadString();
-		ServerMessagesNeedAcknowledges.Add(RequestID);
+  		ServerMessagesNeedAcknowledges.Add(RequestID);
 		SendAcknowledges();
-		Request.SetConfirmReceived(false);
+		Request.SetDirty(true);
+
+		HandleRPCError(Error, Request);
 		/*Bad code area*/
 		//TODO Handle AUTH_KEY_UNREGISTERED and MIGRATE_PHONE_X
-		if (Error == L"AUTH_KEY_UNREGISTERED")
-			throw(std::system_error(EDOM, std::generic_category()));
+			
 		return false;
 
 	}
@@ -436,27 +366,70 @@ bool MTProtoSender::HandleRPCResult(TArray<unsigned char> Message, TLBaseObject 
 		TArray<uint8> CompressedData;
 		TArray<uint8> DecompressedData;
 		CompressedData = Reader.TGReadBytes();
-		unsigned char out[CHUNK];
-		unsigned long UncompressLen = CompressedData.Num() * 4;
-		auto Result = test_inflate( CompressedData.GetData(), CompressedData.Num(), out, UncompressLen);;
+		int32 Result = Utilities::Decompress(CompressedData, DecompressedData);;
 
-		BinaryReader GzipReader((unsigned char *) Result.GetData(), Result.Num());
+		BinaryReader GzipReader(DecompressedData.GetData(), DecompressedData.Num());
 		Request.OnResponce(GzipReader);
 	}
 	else
 	{
-		Reader.SetOffset(16);
+		Reader.SetOffset(12);
 		Request.OnResponce(Reader);
 	}
 
 	return true;
 }
 
-TArray<unsigned char> MTProtoSender::CalculateMessageKey(unsigned char * Data, int32 Size)
+bool MTProtoSender::HandleGzipPacked(TArray<uint8> Message, TLBaseObject &Request)
 {
-	unsigned char SHAResult[20];
+	BinaryReader Reader(Message.GetData(), Message.Num());
+	TArray<uint8> CompressedData = Reader.TGReadBytes();
+	TArray<uint8> DecompressedData;
+	int32 UnzipResult = Utilities::Decompress(CompressedData, DecompressedData);
+	if (UnzipResult < 0) return false;
+	return ProcessMessage(DecompressedData, Request);
+}
+
+bool MTProtoSender::HandlePong(TArray<uint8> Message, TLBaseObject &Request)
+{
+	BinaryReader Reader(Message.GetData(), Message.Num());
+	uint64 ReceivedMessageID = Reader.ReadLong();
+	for (TLBaseObject * ConfirmMessage : ClientMessagesNeedAcknowledges)
+	{
+		if (ReceivedMessageID == ConfirmMessage->GetRequestMessageID())
+			ConfirmMessage->SetConfirmReceived(true);
+	}
+	return true;
+}
+
+bool MTProtoSender::HandleRPCError(FString Message, TLBaseObject &Request)
+{
+	if (Message == L"AUTH_KEY_UNREGISTERED")
+	{
+		throw(std::system_error(EDOM, std::generic_category()));
+		return false;
+	}
+	FString PhoneMigrateError("PHONE_MIGRATE");
+	if (Message.Contains(PhoneMigrateError))
+	{
+		int32 DataCenterToMigrate = FCString::Atoi(*Message.Right(PhoneMigrateError.Len()));
+		for (auto DC : MTSession->DCOptions)
+			if (DC->Getid() == DataCenterToMigrate)
+			{
+				MTSession->SetServerAddress(DC->GetIpAddress());
+				MTSession->SetPort(DC->Getport());
+				MTSession->Save();
+			}
+		return true;
+	}
+	return false;
+}
+
+TArray<uint8 > MTProtoSender::CalculateMessageKey(uint8 * Data, int32 Size)
+{
+	uint8 SHAResult[20];
 	SHA1(Data, Size, SHAResult);
-	TArray<unsigned char> Temp;
+	TArray<uint8 > Temp;
 	for (int32 i = 4; i < 20; i++)
 		Temp.Add(SHAResult[i]);
 	return Temp;
