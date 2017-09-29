@@ -19,6 +19,7 @@
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
 	: MTProtoPlainSender(Transport)
 {
+	Connected = false;
 	if (NewSession == nullptr)
 		MTSession = new Session("MTSession");
 	else
@@ -187,7 +188,7 @@ TArray<uint8 > MTProtoSender::DecodeMessage(TArray<uint8> Message)
 
 	int32 PlainMessageLength = Reader.GetBytes().Num() - Reader.GetOffset();
 
-	uint8 PlainText[2048];
+	uint8 PlainText[16228];
 	AES_ige_encrypt((uint8 *)Reader.Read(PlainMessageLength).GetData(), PlainText, PlainMessageLength, &DecryptAESKey, IV.GetData(), AES_DECRYPT);
 
 	BinaryReader PlainReader(PlainText, PlainMessageLength);
@@ -438,5 +439,12 @@ TArray<uint8 > MTProtoSender::CalculateMessageKey(uint8 * Data, int32 Size)
 bool MTProtoSender::Connect()
 {
 	if (Transport == nullptr) return false;
+	Connected = true;
 	return Transport->Connect();
+}
+
+bool MTProtoSender::IsConnected()
+{
+	if (!Transport) return false;
+	return Connected;
 }

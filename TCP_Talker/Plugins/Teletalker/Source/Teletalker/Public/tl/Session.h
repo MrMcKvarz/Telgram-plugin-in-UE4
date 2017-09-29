@@ -57,7 +57,7 @@ public:
 	void SetSequence(int32 NewSequence) { if (NewSequence > 0) Sequence = NewSequence; }
 
 	int64 GetLastMsgID() { return LastMsgID; }
-	void SetLastMsgID(int64 NewLastMsgID) { if (NewLastMsgID > 0) LastMsgID = NewLastMsgID; }
+	void SetLastMsgID(int64 NewLastMsgID) { LastMsgID = NewLastMsgID; }
 
 	unsigned long long GetSalt() { return Salt; }
 	void SetSalt(unsigned long long NewSalt) { if (NewSalt > 0) Salt = NewSalt; }

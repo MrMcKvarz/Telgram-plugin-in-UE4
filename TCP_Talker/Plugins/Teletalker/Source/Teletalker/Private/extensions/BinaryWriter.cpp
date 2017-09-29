@@ -156,6 +156,13 @@ bool BinaryWriter::WriteDouble(double Value)
 
 bool BinaryWriter::TGWriteDate(FDateTime Value)
 {
+	uint64 UnixTime;
+
+	if (Value == FDateTime::MinValue())
+		UnixTime = 0;
+	else
+		UnixTime = Value.ToUnixTimestamp();
+	WriteInt(UnixTime);
 	return true;
 }
 

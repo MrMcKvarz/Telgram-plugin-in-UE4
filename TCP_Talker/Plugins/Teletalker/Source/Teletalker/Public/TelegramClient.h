@@ -4,6 +4,7 @@
 
 class Session;
 class TLBaseObject;
+class TCPTransport;
 
 
 class TelegramClient
@@ -12,13 +13,14 @@ class TelegramClient
 	int32 API_ID;
 	FString API_Hash;
 
-
-	MTProtoSender * Sender;
+	TCPTransport * Transport;
+	TSharedPtr<MTProtoSender> Sender;
 public:
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
 	~TelegramClient();
 	bool Connect();
+	bool Authorize();
 	bool Invoke(TLBaseObject &Request);
-
+	void Reconnect();
 	
 };

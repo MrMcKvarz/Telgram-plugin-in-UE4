@@ -45,7 +45,7 @@ int32 TCPClient::Write(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 {
-	uint8 Data[2048];
+	uint8 Data[16428];
 	int32 BytesRead = -1;
 	bool Receive = Socket->Recv(Data, Size, BytesRead);
 	TArray<unsigned char> Temp;

@@ -97,6 +97,7 @@ FReply FTeletalkerModule::ButtonClicked()
 	const FString API_HASH = "6b5b14d9cdaac1a56e92868c841d7ec5";
 	TelegramClient Client("Anonymous", API_ID, API_HASH);
 	Client.Connect();
+	Client.Authorize();
 
 	return FReply::Handled();
 }

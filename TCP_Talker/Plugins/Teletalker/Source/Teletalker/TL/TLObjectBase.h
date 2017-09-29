@@ -16,11 +16,6 @@ public:
 	void OnConfirm();
 	bool NeedResend();
 
-	// 	virtual void DoDict()
-	// 	{
-	// 
-	// 	}
-
 	virtual void OnSend(BinaryWriter& Writer) {}
 	virtual void OnResponce(BinaryReader& Reader) {}
 	virtual TLBaseObject * GetResult() { return this; }

@@ -156,12 +156,17 @@ FString BinaryReader::TGReadString()
 {
 // 	auto UTF8Value = TCHAR_TO_UTF8(*Value);
 // 	return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
-
+	
 	auto String = TGReadBytes();
-	FString Result;
-	for (auto Letter : String)
-		Result.AppendChar(Letter);
-	return Result;// .Reverse();
+	String.Add(0);
+	TArray<uint8> Result;
+// 	for (int32 i = String.Num() - 1; i >= 0 ; i--)
+// 		Result.Add(String[i]);
+	FString TResult = FString(UTF8_TO_TCHAR(String.GetData()));
+//	FString UResult;
+// 	for (int32 i = 0; i < Result.Num(); i++)
+// 		UResult.Append(&TResult[i]);
+	return TResult;
 }
 
 bool BinaryReader::ReadBool()

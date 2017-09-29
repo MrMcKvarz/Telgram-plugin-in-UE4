@@ -19,7 +19,10 @@ public:
 	TArray<uint8> CalculateMessageKey(uint8 * Data, int32 Size);
 
 	bool Connect();
+
+	bool IsConnected();
 private:
+	bool Connected;
 	void SendAcknowledges();
 	int32 SendPacket(TLBaseObject &Message);
 	bool ProcessMessage(TArray<uint8> Message, TLBaseObject &Request);

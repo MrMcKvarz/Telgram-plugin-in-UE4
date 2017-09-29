@@ -1,4 +1,4 @@
-#include "TelegramClient.h"
+﻿#include "TelegramClient.h"
 #include "network/Authenticator.h"
 #include "network/TCPTransport.h"
 #include "extensions/BinaryWriter.h"
@@ -31,8 +31,6 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 
 TelegramClient::~TelegramClient()
 {
-	if(Sender)
-		delete Sender;
 }
 
 bool TelegramClient::Connect()
@@ -40,14 +38,14 @@ bool TelegramClient::Connect()
 	FIPv4Address TelegramServer;
 	FIPv4Address::Parse(ClientSession->GetServerAddress(), TelegramServer);
 
-	TCPTransport Transport(TelegramServer, ClientSession->GetPort());
+	Transport = new TCPTransport(TelegramServer, ClientSession->GetPort());
 	/*Connect here and close only when program is done*/
 	/*This is due to FSocket bug*/
-	Transport.Connect(); 
-
+	Sender = TSharedPtr<MTProtoSender>(new MTProtoSender(Transport, ClientSession));
+	Sender->Connect();
 	if(ClientSession->GetAuthKey().GetKey().Num() == 0)
 	{
-		AuthKey AuthKeyData = Authenticator::Authenticate(&Transport);
+		AuthKey AuthKeyData = Authenticator::Authenticate(Transport);
 		ClientSession->SetAuthKey(AuthKeyData);
 
 		if (ClientSession->Save())
@@ -55,23 +53,27 @@ bool TelegramClient::Connect()
 	}
 
 	HELP::GetConfig ConfigRequest;
+
 	COMMON::InitConnection InitRequest(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
 		ClientSession->GetLangPack(), ClientSession->GetLangCode(), &ConfigRequest);
 	COMMON::InvokeWithLayer InvokeWithLayerRequest(71, &InitRequest);
-
-	Sender = new MTProtoSender(&Transport, ClientSession);
-
 
 	Invoke(InvokeWithLayerRequest);
 	COMMON::Config* ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest.GetResult());
 
 	ClientSession->DCOptions = ConfigResult->GetDcOptions();
 
+	return true;
+}
+
+bool TelegramClient::Authorize()
+{
+	if (!Sender->IsConnected()) return false;
 	COMMON::InputUserSelf InputUser;
 	TArray<TLBaseObject*> UserVector;
 	UserVector.Add(&InputUser);
 	USERS::GetUsers IsAuthorized(UserVector);
-	
+
 	bool IsUserAuthorized;
 	try
 	{
@@ -81,33 +83,44 @@ bool TelegramClient::Connect()
 	{
 		IsUserAuthorized = false;
 	}
-	FString PhoneNumber = FString("9996621234");
-	if (!IsUserAuthorized)
+	FString PhoneNumber = FString("+380668816402");//FString("9996620000");
+
+// 				AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
+// 				Invoke(SendCodeRequest);
+// 				FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+// 				FString Path;
+// 				Path += FPaths::GamePluginsDir();
+// 				Path += "CrunchPower.txt";
+// 				FString PhoneCode;
+// 				(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
+// 				AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
+// 				Invoke(SingInRequest);
+	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
+	Invoke(GetDialogRequest);
+	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
+
+	TArray<PRIVATE::Peer*> Peers;
+	TArray<FString> DialogsNames;
+	for (auto dialog : GetDialogResult->Getdialogs())
 	{
-// 		AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
-// 		Invoke(SendCodeRequest);
-// 		FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
-// 		FString Path;
-// 		Path += FPaths::GamePluginsDir();
-// 		Path += "CrunchPower.txt";
-// 		FString PhoneCode;
-// 		(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
-// 		AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
-// 		Invoke(SingInRequest);
-// 		MESSAGES::GetDialogs GetDialogRequest(false, FDateTime(),0,new PRIVATE::InputPeer(),10);
-// 		Invoke(GetDialogRequest);
-// 		auto GetDialogResult = GetDialogRequest.GetResult();
+		auto Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
+		for (auto user : GetDialogResult->Getusers())
+			if (user->Getid() == Title->GetUserId())
+				DialogsNames.Add(user->GetFirstName());
+		for (auto chat : GetDialogResult->Getchats())
+			if (chat->Getid() == Title->GetUserId())
+				DialogsNames.Add(chat->Gettitle());
+
 	}
-
-
-// 	if (ClientSession->Save())
-// 		UE_LOG(LogTemp, Warning, TEXT("Session prob saved 2"));
-
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	for (auto dialognames : DialogsNames)
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *dialognames);
 	return true;
 }
 
 bool TelegramClient::Invoke(TLBaseObject &Request)
 {
+
 	//auto wrtf = typeid(Request).name();
 	if (!Request.IsContentRelated()) return false;
 	int32 InitSent = Sender->Send(Request);
@@ -115,4 +128,10 @@ bool TelegramClient::Invoke(TLBaseObject &Request)
 	return true;
 }
 
+void TelegramClient::Reconnect()
+{
+	if (ClientSession) delete ClientSession;
+	ClientSession = new Session("Client");
+	Connect();
+}
 
