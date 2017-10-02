@@ -26,11 +26,14 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 	ClientSession = new Session(SessionName);
 	API_ID = API_id;
 	API_Hash = API_hash;
+	bAuthorized = false;
 	ClientSession->Load();	
 }
 
 TelegramClient::~TelegramClient()
 {
+	if (Transport) delete Transport;
+	if (ClientSession) delete ClientSession;
 }
 
 bool TelegramClient::Connect()
@@ -104,6 +107,7 @@ bool TelegramClient::Authorize()
 	for (auto dialog : GetDialogResult->Getdialogs())
 	{
 		auto Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
+	
 		for (auto user : GetDialogResult->Getusers())
 			if (user->Getid() == Title->GetUserId())
 				DialogsNames.Add(user->GetFirstName());
@@ -130,8 +134,8 @@ bool TelegramClient::Invoke(TLBaseObject &Request)
 
 void TelegramClient::Reconnect()
 {
-	if (ClientSession) delete ClientSession;
-	ClientSession = new Session("Client");
+	ClientSession->GenerateNewSessionID(); //effectively creating new session 
+	ClientSession->Save();
 	Connect();
 }
 

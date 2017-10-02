@@ -49,9 +49,9 @@ Session::Session(FString SessionUserdID)
 
 	ServerAddress = "149.154.167.51";//"91.108.56.165";//"149.154.167.51"; /*This is address of some data center of Telegram*/
 	Port = 443;
-	ID = Crypto::GetRandomLong();
 	Sequence = 0;
 	Salt = 0;
+	GenerateNewSessionID();
 	LastMsgID = 0;
 	SessionFilePath = FPaths::GamePluginsDir();
 }
@@ -118,4 +118,9 @@ bool Session::Load()
 bool Session::Delete()
 {
 	return true;
+}
+
+void Session::GenerateNewSessionID()
+{
+	ID = Crypto::GetRandomLong();
 }

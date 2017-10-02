@@ -31,6 +31,8 @@ public:
 	
 	TArray<COMMON::DcOption*> DCOptions;
 
+	void GenerateNewSessionID();
+
 	/*get/set area*/
 	FString GetServerAddress() { return ServerAddress; }
 	void SetServerAddress(FString NewServerAddress) { if (!NewServerAddress.IsEmpty()) ServerAddress = NewServerAddress; }

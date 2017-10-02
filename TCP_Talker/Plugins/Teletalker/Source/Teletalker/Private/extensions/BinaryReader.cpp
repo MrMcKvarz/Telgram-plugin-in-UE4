@@ -153,20 +153,11 @@ TLBaseObject* BinaryReader::TGReadObject()
 
 
 FString BinaryReader::TGReadString()
-{
-// 	auto UTF8Value = TCHAR_TO_UTF8(*Value);
-// 	return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
-	
-	auto String = TGReadBytes();
+{	
+	TArray<uint8> String = TGReadBytes();
 	String.Add(0);
-	TArray<uint8> Result;
-// 	for (int32 i = String.Num() - 1; i >= 0 ; i--)
-// 		Result.Add(String[i]);
-	FString TResult = FString(UTF8_TO_TCHAR(String.GetData()));
-//	FString UResult;
-// 	for (int32 i = 0; i < Result.Num(); i++)
-// 		UResult.Append(&TResult[i]);
-	return TResult;
+	FString Result = FString(UTF8_TO_TCHAR(String.GetData()));
+	return Result;
 }
 
 bool BinaryReader::ReadBool()

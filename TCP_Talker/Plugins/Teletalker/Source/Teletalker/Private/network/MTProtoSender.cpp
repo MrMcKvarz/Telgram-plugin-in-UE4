@@ -11,9 +11,7 @@
 #include "crypto/Crypto.h"
 #include "../../TL/AllObjects.h"
 #include <zlib.h>
-/*prob should not be here*/
-#include <exception>
-#include <system_error>
+#include "MTError.h"
 
 
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
@@ -354,8 +352,6 @@ bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request
 		Request.SetDirty(true);
 
 		HandleRPCError(Error, Request);
-		/*Bad code area*/
-		//TODO Handle AUTH_KEY_UNREGISTERED and MIGRATE_PHONE_X
 			
 		return false;
 

@@ -15,6 +15,7 @@ class TelegramClient
 
 	TCPTransport * Transport;
 	TSharedPtr<MTProtoSender> Sender;
+	bool bAuthorized;
 public:
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
 	~TelegramClient();
