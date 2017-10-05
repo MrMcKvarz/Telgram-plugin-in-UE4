@@ -88,16 +88,16 @@ bool TelegramClient::Authorize()
 	}
 	FString PhoneNumber = FString("+380668816402");//FString("9996620000");
 
-// 				AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
-// 				Invoke(SendCodeRequest);
-// 				FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
-// 				FString Path;
-// 				Path += FPaths::GamePluginsDir();
-// 				Path += "CrunchPower.txt";
-// 				FString PhoneCode;
-// 				(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
-// 				AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
-// 				Invoke(SingInRequest);
+				AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
+				Invoke(SendCodeRequest);
+				FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+				FString Path;
+				Path += FPaths::GamePluginsDir();
+				Path += "CrunchPower.txt";
+				FString PhoneCode;
+				(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
+				AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
+				Invoke(SingInRequest);
 	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
 	Invoke(GetDialogRequest);
 	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());

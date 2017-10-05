@@ -11,7 +11,9 @@
 #include "crypto/Crypto.h"
 #include "../../TL/AllObjects.h"
 #include <zlib.h>
-#include "MTError.h"
+
+#include <exception>
+#include <system_error>
 
 
 MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
