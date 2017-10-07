@@ -12,7 +12,7 @@ class MTProtoSender : MTProtoPlainSender
 	TArray<uint64> ServerMessagesNeedAcknowledges;
 	TArray<TLBaseObject*> ClientMessagesNeedAcknowledges;
 public:
-	MTProtoSender(TCPTransport * Transport, Session * NewSession);
+	MTProtoSender(Session * NewSession);
 	int32 Send(TLBaseObject &Message); // TLObject
 	TArray<uint8> Receive(TLBaseObject &Message);
 

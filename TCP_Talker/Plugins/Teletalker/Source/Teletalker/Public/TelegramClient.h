@@ -1,7 +1,6 @@
 #pragma once 
 #include "Engine.h"
 
-
 class Session;
 class TLBaseObject;
 class TCPTransport;
@@ -18,7 +17,6 @@ class TelegramClient
 	int32 API_ID;
 	FString API_Hash;
 
-	TCPTransport * Transport;
 	TSharedPtr<MTProtoSender> Sender;
 	bool bAuthorized;
 public:

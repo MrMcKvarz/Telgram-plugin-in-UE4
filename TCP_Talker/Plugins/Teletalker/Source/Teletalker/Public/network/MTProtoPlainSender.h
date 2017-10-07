@@ -1,8 +1,8 @@
 #pragma once
 #include "Engine.h"
 
-
 class TCPTransport;
+class Session;
 
 class MTProtoPlainSender
 {
@@ -12,7 +12,7 @@ protected:
 	int64 LastMessageID;
 	TCPTransport * Transport;
 public:
-	MTProtoPlainSender(TCPTransport * Transport);
+	MTProtoPlainSender(FString IP, int32 Port);
 	bool Connect();
 	void Disconnect();
 	int32 Send(unsigned char * Data, int32 Size);

@@ -69,13 +69,14 @@ bool Prime(unsigned long a)
 	return true;
 }
 
-AuthKey Authenticator::Authenticate(TCPTransport * Transport)
+AuthKey Authenticator::Authenticate(FString IP, int32 Port)
 {
-	MTProtoPlainSender Sender(Transport);//Transport is already connected
+	MTProtoPlainSender Sender(IP, Port);//Transport is already connected
 
 	//Send scheme https://core.telegram.org/mtproto/samples-auth_key
 
 	/*Request for (p,q) Authorization*/
+	Sender.Connect();
 	BinaryWriter PQWriter;
 	BinaryWriter HashWriter;
 	PQWriter.WriteInt(0x60469778);

@@ -17,8 +17,8 @@
 #include <system_error>
 
 
-MTProtoSender::MTProtoSender(TCPTransport * Transport, Session * NewSession)
-	: MTProtoPlainSender(Transport)
+MTProtoSender::MTProtoSender(Session * NewSession)
+	: MTProtoPlainSender(NewSession->GetServerAddress(), NewSession->GetPort())
 {
 	Connected = false;
 	if (NewSession == nullptr)
@@ -402,7 +402,7 @@ bool MTProtoSender::HandleRPCError(FString Message, TLBaseObject &Request)
 	{
 		FRegexPattern Pattern(TEXT("(\\d+)"));
 		FRegexMatcher Match(Pattern, Message);
-		int32 DataCenterToMigrate;
+		int32 DataCenterToMigrate = -1;
 		if (Match.FindNext())
 		{
 			FString asd = Match.GetCaptureGroup(1);

@@ -2,15 +2,20 @@
 #include "network/TCPTransport.h"
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
+#include "Session.h"
 #include <chrono>
 #include <thread>
 
-MTProtoPlainSender::MTProtoPlainSender(TCPTransport * Transport)
+MTProtoPlainSender::MTProtoPlainSender(FString IP, int32 Port)
 {
 	Sequence = 0;
 	TimeOffset = 0;
 	LastMessageID = 0;
-	this->Transport = Transport;
+
+	FIPv4Address TelegramServer;
+	FIPv4Address::Parse(IP, TelegramServer);
+
+	Transport = new TCPTransport(TelegramServer, Port);
 }
 
 bool MTProtoPlainSender::Connect()

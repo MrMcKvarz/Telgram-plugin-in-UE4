@@ -33,23 +33,19 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 
 TelegramClient::~TelegramClient()
 {
-	if (Transport) delete Transport;
 	if (ClientSession) delete ClientSession;
 }
 
 bool TelegramClient::Connect()
 {
-	FIPv4Address TelegramServer;
-	FIPv4Address::Parse(ClientSession->GetServerAddress(), TelegramServer);
 
-	Transport = new TCPTransport(TelegramServer, ClientSession->GetPort());
 	/*Connect here and close only when program is done*/
 	/*This is due to FSocket bug*/
-	Sender = TSharedPtr<MTProtoSender>(new MTProtoSender(Transport, ClientSession));
+	Sender = TSharedPtr<MTProtoSender>(new MTProtoSender(ClientSession));
 	Sender->Connect();
 	if(ClientSession->GetAuthKey().GetKey().Num() == 0)
 	{
-		AuthKey AuthKeyData = Authenticator::Authenticate(Transport);
+		AuthKey AuthKeyData = Authenticator::Authenticate(ClientSession->GetServerAddress(), ClientSession->GetPort());
 		ClientSession->SetAuthKey(AuthKeyData);
 
 		if (ClientSession->Save())
@@ -89,16 +85,16 @@ bool TelegramClient::Authorize()
 	}
 	FString PhoneNumber = FString("+380668816402");
 
-	AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
-	Invoke(SendCodeRequest);
-	FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
-	FString Path;
-	Path += FPaths::GamePluginsDir();
-	Path += "CrunchPower.txt";
-	FString PhoneCode;
-	(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
-	AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
-	Invoke(SingInRequest);
+// 	AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
+// 	Invoke(SendCodeRequest);
+// 	FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+// 	FString Path;
+// 	Path += FPaths::GamePluginsDir();
+// 	Path += "CrunchPower.txt";
+// 	FString PhoneCode;
+// 	(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
+// 	AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
+// 	Invoke(SingInRequest);
 	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
 	Invoke(GetDialogRequest);
 	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
