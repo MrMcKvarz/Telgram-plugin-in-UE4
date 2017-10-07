@@ -12,6 +12,7 @@
 #include "../../TL/AllObjects.h"
 #include <zlib.h>
 
+#include "Regex.h"
 #include <exception>
 #include <system_error>
 
@@ -39,7 +40,7 @@ TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return TArray<uint8 >();
 	TArray<uint8 > Received;
-	while(!Message.IsConfirmReceived() || !Message.IsResponded())
+	while(!Message.IsConfirmReceived() || !Message.IsResponded() || Message.IsDirty())
 	{
 		auto Response = Transport->Receive();
 		auto Decoded = DecodeMessage(Response);
@@ -241,23 +242,6 @@ bool MTProtoSender::HandleMessageContainer(TArray<uint8> Message, TLBaseObject &
 
 bool MTProtoSender::HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &Request)
 {
-// self._logger.debug('Handling bad message notification')
-// 	reader.read_int(signed = False)  # code
-// 	reader.read_long()  # request_id
-// 	reader.read_int()  # request_sequence
-// 
-// 	error_code = reader.read_int()
-// 	error = BadMessageError(error_code)
-// 	if error_code in(16, 17) :
-// 		# sent msg_id too low or too high(respectively).
-// 		# Use the current msg_id to determine the right time offset.
-// 		self.session.update_time_offset(correct_msg_id = msg_id)
-// 		self.session.save()
-// 		self._logger.debug('Read Bad Message error: ' + str(error))
-// 		self._logger.debug('Attempting to use the correct time offset.')
-// 		return True
-// 	else:
-// raise error
 	BinaryReader Reader(Message.GetData(), Message.Num());
 	uint32 Code = Reader.ReadInt();
 	uint64 RequestID = Reader.ReadLong();
@@ -408,14 +392,28 @@ bool MTProtoSender::HandleRPCError(FString Message, TLBaseObject &Request)
 		throw(std::system_error(EDOM, std::generic_category()));
 		return false;
 	}
-	FString PhoneMigrateError("PHONE_MIGRATE");
-	if (Message.Contains(PhoneMigrateError))
+	FString PhoneMigrateError("PHONE_MIGRATE_");
+	FString NetworkMigrateError("NETWORK_MIGRATE_");
+	FString FileMigrateError("FILE_MIGRATE_");
+	FString UserMigrateError("USER_MIGRATE_");
+
+
+	if (Message.Contains(PhoneMigrateError) || Message.Contains(NetworkMigrateError) || Message.Contains(FileMigrateError) || Message.Contains(UserMigrateError))
 	{
-		int32 DataCenterToMigrate = FCString::Atoi(*Message.Right(PhoneMigrateError.Len()));
+		FRegexPattern Pattern(TEXT("(\\d+)"));
+		FRegexMatcher Match(Pattern, Message);
+		int32 DataCenterToMigrate;
+		if (Match.FindNext())
+		{
+			FString asd = Match.GetCaptureGroup(1);
+			DataCenterToMigrate = FCString::Atoi(*asd);
+		}
+		//int32 DataCenterToMigrate = FCString::Atoi(*Message.Right(PhoneMigrateError.Len()));
 		for (auto DC : MTSession->DCOptions)
 			if (DC->Getid() == DataCenterToMigrate)
 			{
 				MTSession->SetServerAddress(DC->GetIpAddress());
+				MTSession->SetAuthKey(AuthKey());
 				MTSession->SetPort(DC->Getport());
 				MTSession->Save();
 			}

@@ -3,6 +3,7 @@
 #include "network/TCPTransport.h"
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
+#include "Crypto.h"
 #include "MTProtoSender.h"
 #include <typeinfo> 
 /*prob should not be here*/
@@ -86,32 +87,32 @@ bool TelegramClient::Authorize()
 	{
 		IsUserAuthorized = false;
 	}
-	FString PhoneNumber = FString("+380668816402");//FString("9996620000");
+	FString PhoneNumber = FString("+380668816402");
 
-				AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
-				Invoke(SendCodeRequest);
-				FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
-				FString Path;
-				Path += FPaths::GamePluginsDir();
-				Path += "CrunchPower.txt";
-				FString PhoneCode;
-				(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
-				AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
-				Invoke(SingInRequest);
+	AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
+	Invoke(SendCodeRequest);
+	FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+	FString Path;
+	Path += FPaths::GamePluginsDir();
+	Path += "CrunchPower.txt";
+	FString PhoneCode;
+	(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
+	AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
+	Invoke(SingInRequest);
 	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
 	Invoke(GetDialogRequest);
 	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
 
-	TArray<PRIVATE::Peer*> Peers;
+	//TArray<PRIVATE::Peer*> Peers;
 	TArray<FString> DialogsNames;
 	for (auto dialog : GetDialogResult->Getdialogs())
 	{
-		auto Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
+		COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
 	
-		for (auto user : GetDialogResult->Getusers())
+		for (COMMON::User * user : GetDialogResult->Getusers())
 			if (user->Getid() == Title->GetUserId())
 				DialogsNames.Add(user->GetFirstName());
-		for (auto chat : GetDialogResult->Getchats())
+		for (COMMON::Chat * chat : GetDialogResult->Getchats())
 			if (chat->Getid() == Title->GetUserId())
 				DialogsNames.Add(chat->Gettitle());
 
@@ -119,13 +120,21 @@ bool TelegramClient::Authorize()
 	UE_LOG(LogTemp, Warning, TEXT(""));
 	for (auto dialognames : DialogsNames)
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *dialognames);
+
+	COMMON::User * UserSendTo = nullptr;
+	for (COMMON::User * user : GetDialogResult->Getusers())
+		if (user->GetFirstName() == L"Yaroslav")
+			UserSendTo = user;
+
+	if(UserSendTo)
+	{
+		SendMessage(new COMMON::InputPeerUser(UserSendTo->Getid(), UserSendTo->GetAccessHash()), FString("Govnogram API "));
+	}
 	return true;
 }
 
 bool TelegramClient::Invoke(TLBaseObject &Request)
 {
-
-	//auto wrtf = typeid(Request).name();
 	if (!Request.IsContentRelated()) return false;
 	int32 InitSent = Sender->Send(Request);
 	Sender->Receive(Request);
@@ -137,5 +146,17 @@ void TelegramClient::Reconnect()
 	ClientSession->GenerateNewSessionID(); //effectively creating new session 
 	ClientSession->Save();
 	Connect();
+}
+
+bool TelegramClient::SendMessage(COMMON::InputPeerUser * Peer, FString Message)
+{
+	bool Result = false;
+	if(Peer && !Message.IsEmpty())
+	{
+		MESSAGES::SendMessage SendMessageRequest(true, false, false, false, Peer, 0, Message, Crypto::GetRandomLong(), nullptr, TArray<PRIVATE::MessageEntity *>());
+		Result = Invoke(SendMessageRequest);
+	}
+	return Result;
+	
 }
 

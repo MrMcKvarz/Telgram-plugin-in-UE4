@@ -6,6 +6,11 @@ class Session;
 class TLBaseObject;
 class TCPTransport;
 
+namespace COMMON
+{
+	class InputPeerUser;
+};
+
 
 class TelegramClient
 {
@@ -24,4 +29,5 @@ public:
 	bool Invoke(TLBaseObject &Request);
 	void Reconnect();
 	
+	bool SendMessage(COMMON::InputPeerUser * Peer, FString Message);
 };
