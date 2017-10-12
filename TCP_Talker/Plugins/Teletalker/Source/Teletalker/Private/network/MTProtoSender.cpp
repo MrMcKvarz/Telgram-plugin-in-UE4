@@ -39,10 +39,18 @@ int32 MTProtoSender::Send(TLBaseObject &Message)
 TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return TArray<uint8 >();
-	TArray<uint8 > Received;
+	TArray<uint8> Received;
 	while(!Message.IsConfirmReceived() || !Message.IsResponded() || Message.IsDirty())
 	{
-		auto Response = Transport->Receive();
+		TArray<uint8> Response = Transport->Receive();
+		if (Response.Num() == 0)
+		{
+			TArray<uint64> MessagesNeedResend;
+			MessagesNeedResend.Add(Message.GetRequestMessageID());
+			COMMON::MsgResendReq ResendRequest(MessagesNeedResend);
+			Send(ResendRequest);
+			continue;
+		}
 		auto Decoded = DecodeMessage(Response);
 		ProcessMessage(Decoded, Message);
 	}

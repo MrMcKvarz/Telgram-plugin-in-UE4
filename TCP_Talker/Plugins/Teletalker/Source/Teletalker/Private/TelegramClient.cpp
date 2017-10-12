@@ -85,6 +85,7 @@ bool TelegramClient::Authorize()
 	}
 	FString PhoneNumber = FString("+380668816402");
 
+	{
 // 	AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
 // 	Invoke(SendCodeRequest);
 // 	FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
@@ -95,13 +96,14 @@ bool TelegramClient::Authorize()
 // 	(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
 // 	AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
 // 	Invoke(SingInRequest);
+	}
 	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
 	Invoke(GetDialogRequest);
 	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
 
 	//TArray<PRIVATE::Peer*> Peers;
 	TArray<FString> DialogsNames;
-	for (auto dialog : GetDialogResult->Getdialogs())
+	for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
 	{
 		COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
 	
@@ -124,7 +126,7 @@ bool TelegramClient::Authorize()
 
 	if(UserSendTo)
 	{
-		SendMessage(new COMMON::InputPeerUser(UserSendTo->Getid(), UserSendTo->GetAccessHash()), FString("Govnogram API "));
+		SendMessage(new COMMON::InputPeerUser(UserSendTo->Getid(), UserSendTo->GetAccessHash()), FString("Hello world! "));
 	}
 	return true;
 }
