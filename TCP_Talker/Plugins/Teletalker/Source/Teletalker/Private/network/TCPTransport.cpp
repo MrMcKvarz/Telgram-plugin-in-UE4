@@ -56,15 +56,15 @@ int32 TCPTransport::Send(unsigned char * Packet, int32 Size)
 
 TArray<unsigned char> TCPTransport::Receive()
 {
-	auto PacketLengthBytes = Client->Read(4);
+	TArray<uint8> PacketLengthBytes = Client->Read(4);
 	int32 PacketLength = BinaryReader(PacketLengthBytes.GetData(), 4).ReadInt();
 
- 	auto SendCounterBytes = Client->Read(4);
+	TArray<uint8> SendCounterBytes = Client->Read(4);
 	int32 SendCounter = BinaryReader(SendCounterBytes.GetData(), 4).ReadInt();
 
-	auto Packet = Client->Read(PacketLength - 12);
+	TArray<uint8> Packet = Client->Read(PacketLength - 12);
 
-	auto HashBytes = Client->Read(4);
+	TArray<uint8> HashBytes = Client->Read(4);
 	uint32 Hash = BinaryReader(HashBytes.GetData(), 4).ReadInt();
  
 	BinaryWriter Writer;
@@ -72,8 +72,9 @@ TArray<unsigned char> TCPTransport::Receive()
 	Writer.WriteInt(SendCounter);
 	Writer.Write(Packet.GetData(), Packet.Num());
 	uint32 CRC = GetCrc(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
-	if(Hash != CRC) // this should do smth reasonable
-		UE_LOG(LogTemp, Error, TEXT("Hash tcp error"));
+	if (Hash != CRC) // this should do smth reasonable
+		//UE_LOG(LogTemp, Error, TEXT("Hash tcp error"));
+		Packet.Empty();
 	return Packet;
 	
 }

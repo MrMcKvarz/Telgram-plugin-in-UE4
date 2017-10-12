@@ -45,16 +45,23 @@ int32 TCPClient::Write(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 {
-	uint8 Data[16428];
-	int32 BytesRead = -1;
-	bool Receive = Socket->Recv(Data, Size, BytesRead);
+	int32 BytesToReceive = Size;
+	uint8 Data[500000];
 	TArray<unsigned char> Temp;
-	if (Receive)
+	Temp.Reserve(Size);
+	do
 	{
-		Temp.Reserve(Size);
-		for (int i = 0; i < Size; i++)
-			Temp.Add(Data[i]);
-	}
+		int32 BytesRead = -1;
+		bool Receive = Socket->Recv(Data, BytesToReceive, BytesRead);
+
+		if (Receive)
+		{
+
+			for (int i = 0; i < BytesRead; i++)
+				Temp.Add(Data[i]);
+		}
+		BytesToReceive -= BytesRead;
+	} while (BytesToReceive != 0);
 	return Temp;
 }
 
