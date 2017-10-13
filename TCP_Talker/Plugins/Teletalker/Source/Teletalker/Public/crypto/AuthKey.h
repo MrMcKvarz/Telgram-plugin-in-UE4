@@ -1,6 +1,6 @@
 #pragma once
 #include "Engine.h"
-class AuthKey
+class TELETALKER_API AuthKey
 {
 	TArray<unsigned char> Key;
 	unsigned long long AuxHash;

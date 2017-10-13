@@ -3,7 +3,7 @@
 #include "Networking.h"
 class TCPClient;
 
-class TCPTransport
+class TELETALKER_API TCPTransport
 {
 	FIPv4Address IP;
 	int32 Port;
@@ -19,7 +19,7 @@ public:
 	bool IsConnected();
 	int32 Send(unsigned char * Packet, int32 Size);
 	TArray<unsigned char> Receive();
-	void Close();
+	bool Close();
 	void CancelReceive();
 private:
 	uint32 GetCrc(const void * Data, int32 Size);

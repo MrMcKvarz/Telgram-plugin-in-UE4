@@ -47,7 +47,7 @@ Session::Session(FString SessionUserdID)
 	SystemLangCode = LangCode;
 	LangPack = "";
 
-	ServerAddress = "149.154.167.51";//"91.108.56.165";//"149.154.167.51"; /*This is address of some data center of Telegram*/
+	ServerAddress = "91.108.56.165";//"149.154.167.51"; /*This is address of some data center of Telegram*/
 	Port = 443;
 	Sequence = 0;
 	Salt = 0;

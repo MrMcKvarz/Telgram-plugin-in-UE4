@@ -13,7 +13,7 @@
 #include "SlateDelegates.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UnrealMathUtility.h"
-#include "TelegramClient.h"
+/*#include "TelegramClient.h"*/
 
 static const FName TeletalkerTabName("Teletalker");
 
@@ -91,38 +91,38 @@ TSharedRef<SDockTab> FTeletalkerModule::OnSpawnPluginTab(const FSpawnTabArgs& Sp
 		];
 }
 
-uint32 API_ID;
-FString API_Hash;
-
-bool Load()
-{
-
-	FString JsonString;
-	FString FilePath = FPaths::GamePluginsDir() + "Config.ini";
-	if(!FFileHelper::LoadFileToString(JsonString, FilePath.GetCharArray().GetData())) return false;
-
-	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
-	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-
-	if (FJsonSerializer::Deserialize(Reader, JsonObject))
-	{
-		API_ID = JsonObject->GetNumberField(TEXT("API_ID"));
-		API_Hash = JsonObject->GetStringField(TEXT("API_Hash"));
-		return true;
-	}
-	return false;
-}
+// uint32 API_ID;
+// FString API_Hash;
+// 
+// bool Load()
+// {
+// 
+// 	FString JsonString;
+// 	FString FilePath = FPaths::GamePluginsDir() + "Config.ini";
+// 	if(!FFileHelper::LoadFileToString(JsonString, FilePath.GetCharArray().GetData())) return false;
+// 
+// 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+// 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+// 
+// 	if (FJsonSerializer::Deserialize(Reader, JsonObject))
+// 	{
+// 		API_ID = JsonObject->GetNumberField(TEXT("API_ID"));
+// 		API_Hash = JsonObject->GetStringField(TEXT("API_Hash"));
+// 		return true;
+// 	}
+// 	return false;
+// }
 
 FReply FTeletalkerModule::ButtonClicked()
 {
-	if(Load())
-// 	const int32 API_ID = 122648;
-// 	const FString API_HASH = "6b5b14d9cdaac1a56e92868c841d7ec5";
-	{
-		TelegramClient Client("Anonymous", API_ID, API_Hash);
-		Client.Connect();
-		Client.Authorize();
-	}
+// 	if(Load())
+// // 	const int32 API_ID = 122648;
+// // 	const FString API_HASH = "6b5b14d9cdaac1a56e92868c841d7ec5";
+// 	{
+// 		TelegramClient Client("Anonymous", API_ID, API_Hash);
+// 		Client.Connect();
+// 		Client.Authorize();
+// 	}
 
 	return FReply::Handled();
 }

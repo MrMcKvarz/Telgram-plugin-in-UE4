@@ -5,7 +5,7 @@
 
 class TLBaseObject;
 
-class BinaryWriter
+class TELETALKER_API BinaryWriter
 {
 	const int32 DefaultSize = 2048;
 	TArray<unsigned char> Buff;

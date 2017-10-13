@@ -3,7 +3,7 @@
 class TCPTransport;
 class AuthKey;
 
-static class Authenticator
+static class TELETALKER_API Authenticator
 {
 public:
 	static AuthKey Authenticate(FString IP, int32 Port);

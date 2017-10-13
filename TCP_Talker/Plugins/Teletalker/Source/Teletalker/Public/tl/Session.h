@@ -3,7 +3,7 @@
 #include "AuthKey.h"
 #include "../../TL/Types/COMMON/Public/DcOption.h"
 
-class Session
+class TELETALKER_API Session
 {
 	FString ServerAddress;
 	int32 Port;

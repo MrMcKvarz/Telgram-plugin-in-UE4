@@ -5,7 +5,7 @@
 
 class TLBaseObject;
 
-class BinaryReader
+class TELETALKER_API BinaryReader
 {
 	TArray<unsigned char> Buff;
 	int32 Size;

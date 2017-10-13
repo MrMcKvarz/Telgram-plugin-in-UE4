@@ -24,9 +24,9 @@ bool MTProtoPlainSender::Connect()
 	return Transport->Connect();	
 }
 
-void MTProtoPlainSender::Disconnect()
+bool MTProtoPlainSender::Disconnect()
 {
-	Transport->Close();
+	return Transport->Close();
 }
 
 int32 MTProtoPlainSender::Send(unsigned char * Data, int32 Size)

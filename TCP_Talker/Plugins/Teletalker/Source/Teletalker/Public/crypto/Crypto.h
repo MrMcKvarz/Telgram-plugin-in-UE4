@@ -1,6 +1,6 @@
 #pragma once
 
-class Crypto
+class TELETALKER_API Crypto
 {
 public:
 	//static Factorize

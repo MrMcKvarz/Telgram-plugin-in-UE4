@@ -72,16 +72,15 @@ TArray<unsigned char> TCPTransport::Receive()
 	Writer.WriteInt(SendCounter);
 	Writer.Write(Packet.GetData(), Packet.Num());
 	uint32 CRC = GetCrc(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
-	if (Hash != CRC) // this should do smth reasonable
-		//UE_LOG(LogTemp, Error, TEXT("Hash tcp error"));
+	if (Hash != CRC) //TODO return error?
 		Packet.Empty();
 	return Packet;
 	
 }
 
-void TCPTransport::Close()
+bool TCPTransport::Close()
 {
-	Client->Close();
+	return Client->Close();
 }
 
 void TCPTransport::CancelReceive()

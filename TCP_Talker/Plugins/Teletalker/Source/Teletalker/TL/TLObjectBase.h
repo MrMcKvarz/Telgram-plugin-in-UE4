@@ -18,7 +18,7 @@ public:
 
 	virtual void OnSend(BinaryWriter& Writer) {}
 	virtual void OnResponce(BinaryReader& Reader) {}
-	virtual TLBaseObject * GetResult() { return this; }
+	TLBaseObject * GetResult() { return this; }
 
 	
 
