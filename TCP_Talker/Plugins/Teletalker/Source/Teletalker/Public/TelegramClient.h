@@ -4,14 +4,17 @@
 class Session;
 class TLBaseObject;
 class TCPTransport;
+class MTProtoSender;
 
 namespace COMMON
 {
 	class InputPeerUser;
+	class User;
+	class Chat;
 };
 
 
-class TelegramClient
+class TELETALKER_API TelegramClient
 {
 	Session * ClientSession;
 	int32 API_ID;
@@ -19,13 +22,24 @@ class TelegramClient
 
 	TSharedPtr<MTProtoSender> Sender;
 	bool bAuthorized;
+	bool bAuthanticated;
+	FString PhoneHashCode;
+	FString PhoneNumber;
+
+	TArray<COMMON::User*> Users;
+	TArray<COMMON::Chat *> Chats;
 public:
+	bool IsUserAuthorized; // presentation only
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
 	~TelegramClient();
 	bool Connect();
-	bool Authorize();
+	bool SendCode(FString PhoneNumber);
 	bool Invoke(TLBaseObject &Request);
 	void Reconnect();
+	TArray<FString> GetDialogSlice(int32 SliceNumber);
+	bool SingIn(FString Code);
 	
-	bool SendMessage(COMMON::InputPeerUser * Peer, FString Message);
+	bool SendMessage(FString UserSendTo, FString Message);
+protected:
+	void GenerateNewAuthKey();
 };

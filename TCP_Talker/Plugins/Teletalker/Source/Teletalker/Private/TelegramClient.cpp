@@ -28,7 +28,8 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 	API_ID = API_id;
 	API_Hash = API_hash;
 	bAuthorized = false;
-	ClientSession->Load();	
+	bAuthanticated = false;
+	IsUserAuthorized = true;
 }
 
 TelegramClient::~TelegramClient()
@@ -40,17 +41,24 @@ bool TelegramClient::Connect()
 {
 
 	/*Connect here and close only when program is done*/
-	/*This is due to FSocket bug*/
-	Sender = TSharedPtr<MTProtoSender>(new MTProtoSender(ClientSession));
-	Sender->Connect();
-	if(ClientSession->GetAuthKey().GetKey().Num() == 0)
+ 	/*This is due to FSocket bug*/
+	if(!Sender.IsValid())
 	{
-		AuthKey AuthKeyData = Authenticator::Authenticate(ClientSession->GetServerAddress(), ClientSession->GetPort());
-		ClientSession->SetAuthKey(AuthKeyData);
+		Sender = TSharedPtr<MTProtoSender>(new MTProtoSender(ClientSession));
+		Sender->SetClient(this);
+	}
 
+	if(!ClientSession->Load())
+	{
+
+		if (!Sender->IsConnected()) Sender->Connect();
+		GenerateNewAuthKey();
+		bAuthanticated = true;
 		if (ClientSession->Save())
 			UE_LOG(LogTemp, Warning, TEXT("Session saved"));
 	}
+	Sender->UpdateTransport(ClientSession);
+	if (!Sender->IsConnected()) Sender->Connect();
 
 	HELP::GetConfig ConfigRequest;
 
@@ -63,71 +71,47 @@ bool TelegramClient::Connect()
 
 	ClientSession->DCOptions = ConfigResult->GetDcOptions();
 
+	UE_LOG(LogTemp, Warning, TEXT("Telegram Client connect"));
 	return true;
 }
 
-bool TelegramClient::Authorize()
+void TelegramClient::GenerateNewAuthKey()
+{
+	AuthKey AuthKeyData = Authenticator::Authenticate(ClientSession->GetServerAddress(), ClientSession->GetPort());
+	ClientSession->SetAuthKey(AuthKeyData);
+	bAuthanticated = true;
+	return;
+}
+
+bool TelegramClient::SendCode(FString PhoneNumber)
 {
 	if (!Sender->IsConnected()) return false;
 	COMMON::InputUserSelf InputUser;
 	TArray<TLBaseObject*> UserVector;
 	UserVector.Add(&InputUser);
-	USERS::GetUsers IsAuthorized(UserVector);
-
-	bool IsUserAuthorized;
+	USERS::GetUsers IsAuthorizedRequest(UserVector);
 	try
 	{
-		Invoke(IsAuthorized);
+		Invoke(IsAuthorizedRequest);
 	}
 	catch (const std::system_error)
 	{
 		IsUserAuthorized = false;
 	}
-	FString PhoneNumber = FString("+380668816402");
-
+	this->PhoneNumber = PhoneNumber;
+	if(!IsUserAuthorized)
 	{
-// 	AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
-// 	Invoke(SendCodeRequest);
-// 	FString PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+		AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
+		Invoke(SendCodeRequest);
+		PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+	}
+/*Crunch power
 // 	FString Path;
 // 	Path += FPaths::GamePluginsDir();
 // 	Path += "CrunchPower.txt";
 // 	FString PhoneCode;
 // 	(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
-// 	AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, PhoneCode);
-// 	Invoke(SingInRequest);
-	}
-	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
-	Invoke(GetDialogRequest);
-	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
-
-	//TArray<PRIVATE::Peer*> Peers;
-	TArray<FString> DialogsNames;
-	for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
-	{
-		COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
-	
-		for (COMMON::User * user : GetDialogResult->Getusers())
-			if (user->Getid() == Title->GetUserId())
-				DialogsNames.Add(user->GetFirstName());
-		for (COMMON::Chat * chat : GetDialogResult->Getchats())
-			if (chat->Getid() == Title->GetUserId())
-				DialogsNames.Add(chat->Gettitle());
-
-	}
-	UE_LOG(LogTemp, Warning, TEXT(""));
-	for (auto dialognames : DialogsNames)
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *dialognames);
-
-	COMMON::User * UserSendTo = nullptr;
-	for (COMMON::User * user : GetDialogResult->Getusers())
-		if (user->GetFirstName() == L"Yaroslav")
-			UserSendTo = user;
-
-	if(UserSendTo)
-	{
-		SendMessage(new COMMON::InputPeerUser(UserSendTo->Getid(), UserSendTo->GetAccessHash()), FString("Hello world! "));
-	}
+*/	
 	return true;
 }
 
@@ -143,18 +127,76 @@ void TelegramClient::Reconnect()
 {
 	ClientSession->GenerateNewSessionID(); //effectively creating new session 
 	ClientSession->Save();
+	bAuthanticated = false;
+	bool disc = Sender->Disconnect();
+	Sender->UpdateTransport(ClientSession);
+	Sender->Connect();
+	GenerateNewAuthKey();
 	Connect();
 }
 
-bool TelegramClient::SendMessage(COMMON::InputPeerUser * Peer, FString Message)
+TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
 {
-	bool Result = false;
-	if(Peer && !Message.IsEmpty())
+	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
+	Invoke(GetDialogRequest);
+	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
+
+	//TArray<PRIVATE::Peer*> Peers;
+	TArray<FString> DialogsNames;
+	for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
 	{
-		MESSAGES::SendMessage SendMessageRequest(true, false, false, false, Peer, 0, Message, Crypto::GetRandomLong(), nullptr, TArray<PRIVATE::MessageEntity *>());
+		COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
+		Users = GetDialogResult->Getusers();
+		for (COMMON::User * user : GetDialogResult->Getusers())
+			if (user->Getid() == Title->GetUserId())
+				DialogsNames.Add(user->GetFirstName());
+		Chats = GetDialogResult->Getchats();
+		for (COMMON::Chat * chat : GetDialogResult->Getchats())
+			if (chat->Getid() == Title->GetUserId())
+				DialogsNames.Add(chat->Gettitle());
+
+	}
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	for (auto dialognames : DialogsNames)
+		UE_LOG(LogTemp, Warning, TEXT("%s"), *dialognames);
+
+	return DialogsNames;
+}
+
+bool TelegramClient::SingIn(FString Code)
+{
+	AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, Code);
+	Invoke(SingInRequest);
+	return true;
+}
+
+bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
+{
+	COMMON::User * User = nullptr;
+	for (COMMON::User * user : Users)
+		if (user->GetFirstName() == UserSendTo)
+			User = user;
+	if (!User) return false;
+
+	bool Result = false;
+	if(!Message.IsEmpty())
+	{
+		MESSAGES::SendMessage SendMessageRequest(
+			true, 
+			false, 
+			false, 
+			false, 
+			new COMMON::InputPeerUser(User->Getid(), User->GetAccessHash()),
+			0, 
+			Message, 
+			Crypto::GetRandomLong(), 
+			nullptr, 
+			TArray<PRIVATE::MessageEntity *>() );
+
 		Result = Invoke(SendMessageRequest);
 	}
-	return Result;
-	
+	return Result;	
 }
+
+
 
