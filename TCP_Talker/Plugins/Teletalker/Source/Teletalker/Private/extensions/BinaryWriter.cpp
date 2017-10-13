@@ -2,6 +2,7 @@
 #include <algorithm> 
 #include "../../TL/TLObjectBase.h"
 #include "../../TL/AllObjects.h"
+#include <string>
 BinaryWriter::BinaryWriter()
 {
 	Buff.Reserve(DefaultSize * 4);
@@ -93,7 +94,7 @@ bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 			padding = 4 - padding;
 		int32 length = Size;
 		if (!WriteByte((unsigned char *)(&length))) return false;
-		WriteBig(Value, Size);
+		Write(Value, Size);
 	}
 	else
 	{
@@ -119,9 +120,10 @@ bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 
 bool BinaryWriter::TGWriteString(FString Value)
 {
-	Value = Value.Reverse();
+	FString Test(Value);
 	auto UTF8Value = TCHAR_TO_UTF8(*Value);
-	return TGWriteBytes((unsigned char *)UTF8Value, Value.Len());
+	std::string MySpecialString(TCHAR_TO_UTF8(*Test));
+	return TGWriteBytes((unsigned char *)UTF8Value, strlen(UTF8Value));
 }
 
 TArray<unsigned char> BinaryWriter::GetBytes(bool Flush /*= true*/)
@@ -132,7 +134,7 @@ TArray<unsigned char> BinaryWriter::GetBytes(bool Flush /*= true*/)
 TArray<unsigned char> BinaryWriter::GetBigBytes(bool Flush /*= true*/)
 {
 	TArray<unsigned char> Temp;
-	/*get reverse byte order from what we store*/
+	/*get reverse byte order from what we store*/ 
 	for (int32 i = 0; i < Buff.Num(); i++)
 		Temp.Add(Buff[Buff.Num() - i - 1]);
 	return Temp;
