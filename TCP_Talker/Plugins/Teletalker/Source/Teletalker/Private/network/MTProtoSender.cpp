@@ -15,6 +15,7 @@
 #include "Regex.h"
 #include <exception>
 #include <system_error>
+#include "TelegramClient.h"
 
 
 MTProtoSender::MTProtoSender(Session * NewSession)
@@ -40,7 +41,7 @@ TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return TArray<uint8 >();
 	TArray<uint8> Received;
-	while(!Message.IsConfirmReceived() || !Message.IsResponded() || Message.IsDirty())
+	while(!Message.IsConfirmReceived() || !Message.IsResponded())
 	{
 		TArray<uint8> Response = Transport->Receive();
 		if (Response.Num() == 0)
@@ -417,13 +418,16 @@ bool MTProtoSender::HandleRPCError(FString Message, TLBaseObject &Request)
 			DataCenterToMigrate = FCString::Atoi(*asd);
 		}
 		//int32 DataCenterToMigrate = FCString::Atoi(*Message.Right(PhoneMigrateError.Len()));
-		for (auto DC : MTSession->DCOptions)
-			if (DC->Getid() == DataCenterToMigrate)
+		for (COMMON::DcOption* DC : MTSession->DCOptions)
+			if (DC->Getid() == DataCenterToMigrate && !DC->Getipv6())
 			{
 				MTSession->SetServerAddress(DC->GetIpAddress());
 				MTSession->SetAuthKey(AuthKey());
 				MTSession->SetPort(DC->Getport());
 				MTSession->Save();
+				Client->Reconnect();
+				Send(Request);
+				break;
 			}
 		return true;
 	}
@@ -444,6 +448,7 @@ bool MTProtoSender::Connect()
 {
 	if (Transport == nullptr) return false;
 	Connected = true;
+
 	return Transport->Connect();
 }
 
@@ -451,4 +456,18 @@ bool MTProtoSender::IsConnected()
 {
 	if (!Transport) return false;
 	return Connected;
+}
+
+void MTProtoSender::SetClient(TelegramClient *Client)
+{
+	this->Client = Client;
+}
+
+bool MTProtoSender::UpdateTransport(Session * NewSession)
+{
+	if (Transport) delete Transport;
+	FIPv4Address TelegramServer;
+	if (!FIPv4Address::Parse(NewSession->GetServerAddress(), TelegramServer)) return false;
+	Transport = new TCPTransport(TelegramServer, NewSession->GetPort());
+	return false;
 }

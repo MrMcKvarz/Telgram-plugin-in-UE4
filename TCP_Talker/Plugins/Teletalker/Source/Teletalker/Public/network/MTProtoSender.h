@@ -5,10 +5,12 @@
 class Session;
 class TCPTransport;
 class TLBaseObject;
+class TelegramClient;
 
-class MTProtoSender : MTProtoPlainSender
+class TELETALKER_API MTProtoSender : public MTProtoPlainSender
 {
 	Session * MTSession;
+	TelegramClient *Client;
 	TArray<uint64> ServerMessagesNeedAcknowledges;
 	TArray<TLBaseObject*> ClientMessagesNeedAcknowledges;
 public:
@@ -21,6 +23,10 @@ public:
 	bool Connect();
 
 	bool IsConnected();
+
+	void SetClient(TelegramClient *Client);
+
+	bool UpdateTransport(Session * NewSession);
 private:
 	bool Connected;
 	void SendAcknowledges();
