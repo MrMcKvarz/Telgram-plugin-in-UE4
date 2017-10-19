@@ -1,4 +1,4 @@
-#include "tl/Session.h"
+#include "Session.h"
 #include <windows.h>
 #include "Engine.h"
 #include "crypto/Crypto.h"
@@ -124,3 +124,4 @@ void Session::GenerateNewSessionID()
 {
 	ID = Crypto::GetRandomLong();
 }
+

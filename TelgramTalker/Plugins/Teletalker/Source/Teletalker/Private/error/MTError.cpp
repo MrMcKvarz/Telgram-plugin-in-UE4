@@ -1,57 +1,78 @@
 #include "MTError.h"
+#include "MTProtoSender.h"
+#include "Session.h"
+#include "TelegramClient.h"
+#include "Regex.h"
+//#include "../../TL/Types/COMMON/Public/DcOption.h"
 
-AUTH_KEY_UNREGISTERED::AUTH_KEY_UNREGISTERED() : std::runtime_error((char *) *Message)
+
+Exception::Exception(MTProtoSender * NewSender, TLBaseObject * NewRequest)
 {
+	Sender = NewSender;
+	Request = NewRequest;
 }
 
-const char* AUTH_KEY_UNREGISTERED::what() const throw()
+bool Exception::HandleException(FString NewError, int32 NewErrorCode)
 {
-	return (char *)*Message;
+	CreateException(NewError, NewErrorCode);
+	switch (ErrorCode)
+	{
+	case 303:
+	{
+		if (Error.Contains("PHONE_MIGRATE_") || Error.Contains("NETWORK_MIGRATE_") || Error.Contains("FILE_MIGRATE_") || Error.Contains("USER_MIGRATE_"))
+		{
+			return HandeMigrate(Error);
+		}
+
+	}
+	break;
+	case 401:
+		if (Error.Contains("AUTH_KEY_UNREGISTERED"))
+			return HandleAuthKeyUnregistered();
+	break;
+	default:
+
+		break;
+	}
+	return true;
 }
 
-const char* AUTH_KEY_INVALID::what() const throw()
+void Exception::CreateException(FString NewError, int32 NewErrorCode)
 {
-	return "The key is invalid";
+	Error = NewError;
+	ErrorCode = NewErrorCode;
 }
 
-const char* USER_DEACTIVATED::what() const throw()
+bool Exception::HandeMigrate(FString ErrorMessage)
 {
-	return "The user has been deleted/deactivated";
+	FRegexPattern Pattern(TEXT("(\\d+)"));
+	FRegexMatcher Match(Pattern, ErrorMessage);
+	int32 DataCenterToMigrate = -1;
+	if (Match.FindNext())
+	{
+		FString asd = Match.GetCaptureGroup(1);
+		DataCenterToMigrate = FCString::Atoi(*asd);
+	}
+	Session * MTSession = Sender->GetSession();
+	if (!MTSession || !Request) return false;
+	for (COMMON::DcOption* DC : MTSession->DCOptions)
+		if (DC->Getid() == DataCenterToMigrate && !DC->Getipv6())
+		{
+			MTSession->SetServerAddress(DC->GetIpAddress());
+			MTSession->GetAuthKey().ClearAuthKey();
+			MTSession->SetPort(DC->Getport());
+			MTSession->Save();
+			Sender->GetClient()->Reconnect();
+			Sender->Send(*Request);
+			break;
+		}
+	return true;
 }
 
-const char* SESSION_REVOKED::what() const throw()
+bool Exception::HandleAuthKeyUnregistered()
 {
-	return "The authorization has been invalidated, because of the user terminating all sessions";
+	if (!Request) return false;
+	Request->SetLastErrorMessage(Error);
+	return true;
 }
 
-
-SESSION_EXPIRED::SESSION_EXPIRED() : std::runtime_error((char *)*Message)
-{
-
-}
-
-const char* SESSION_EXPIRED::what() const throw()
-{
-	return (char *)*Message;
-}
-
-const char* ACTIVE_USER_REQUIRED::what() const throw()
-{
-	return "The method is only available to already activated users";
-}
-
-const char* AUTH_KEY_PERM_EMPTY::what() const throw()
-{
-	return "The method is unavailable for temporary authorization key, not bound to permanent";
-}
-
-
-PHONE_MIGRATE::PHONE_MIGRATE() : std::runtime_error((char *)*Message)
-{
-
-}
-
-const char* PHONE_MIGRATE::what() const throw()
-{
-	return (char *)*Message;
-}

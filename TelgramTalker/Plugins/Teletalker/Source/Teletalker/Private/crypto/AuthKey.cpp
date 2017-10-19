@@ -67,6 +67,13 @@ void AuthKey::SetKey(unsigned char * Data)
 	KeyID = Reader.ReadLong();
 }
 
+void AuthKey::ClearAuthKey()
+{
+	Key.Empty();
+	AuxHash = 0;
+	KeyID = 0;
+}
+
 AuthKey& AuthKey::operator=(const AuthKey& Copy)
 {
 	this->Key = Copy.Key;

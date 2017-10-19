@@ -15,7 +15,7 @@ public:
 	unsigned long long GetAuxHash();
 	unsigned long long GetKeyID();
 	void SetKey(unsigned char * Data);
-
+	void ClearAuthKey();
 	AuthKey& operator=(const AuthKey& other);
 
 };

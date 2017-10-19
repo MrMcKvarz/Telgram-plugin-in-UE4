@@ -1,7 +1,7 @@
 #pragma once 
 #include "MTProtoPlainSender.h"
 
-
+class Exception;
 class Session;
 class TCPTransport;
 class TLBaseObject;
@@ -9,6 +9,7 @@ class TelegramClient;
 
 class TELETALKER_API MTProtoSender : public MTProtoPlainSender
 {
+	Exception * ErrorHandler;
 	Session * MTSession;
 	TelegramClient *Client;
 	TArray<uint64> ServerMessagesNeedAcknowledges;
@@ -27,6 +28,9 @@ public:
 	void SetClient(TelegramClient *Client);
 
 	bool UpdateTransport(Session * NewSession);
+
+	Session * GetSession() { return MTSession; }
+	TelegramClient * GetClient() { return Client; }
 private:
 	bool Connected;
 	void SendAcknowledges();

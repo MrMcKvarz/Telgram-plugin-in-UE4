@@ -12,11 +12,8 @@
 #include "../../TL/AllObjects.h"
 #include <zlib.h>
 
-#include "Regex.h"
-#include <exception>
-#include <system_error>
 #include "TelegramClient.h"
-
+#include "MTError.h"
 /*10/18/2017*/
 #include <fstream>
 #include <string>
@@ -29,6 +26,7 @@ MTProtoSender::MTProtoSender(Session * NewSession)
 		MTSession = new Session("MTSession");
 	else
 		MTSession = NewSession;
+
 }
 
 int32 MTProtoSender::Send(TLBaseObject &Message)
@@ -43,6 +41,7 @@ int32 MTProtoSender::Send(TLBaseObject &Message)
 TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (Transport == nullptr) return TArray<uint8 >();
+	ErrorHandler = new Exception(this, &Message);
 	TArray<uint8> Received;
 	while(!Message.IsConfirmReceived() || !Message.IsResponded())
 	{
@@ -343,21 +342,20 @@ bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request
 
 	if (InnerCode == 0x2144ca19) //RPC Error
 	{
-		uint32 ErrorLength = Reader.ReadInt();
+		uint32 ErrorCode = Reader.ReadInt();
 		FString Error = Reader.TGReadString();
 
   		ServerMessagesNeedAcknowledges.Add(RequestID);
 		SendAcknowledges();
 		Request.SetDirty(true);
-
+		Request.SetResponded(true);
 		std::string text = std::string(TCHAR_TO_UTF8(*Error));
 		std::ofstream file;
 		FString Path = (FPaths::GamePluginsDir() + "log.txt");
 		file.open(*Path, std::ios_base::app);
 		file << text << "\n";
 		file.close();
-
-		HandleRPCError(Error, Request);
+		ErrorHandler->HandleException(Error, ErrorCode);
 			
 		return false;
 
@@ -407,41 +405,31 @@ bool MTProtoSender::HandlePong(TArray<uint8> Message, TLBaseObject &Request)
 
 bool MTProtoSender::HandleRPCError(FString Message, TLBaseObject &Request)
 {
-	if (Message == L"AUTH_KEY_UNREGISTERED")
-	{
-		throw(std::logic_error("AUTH_KEY_UNREGISTERED"));
-		return false;
-	}
-	FString PhoneMigrateError("PHONE_MIGRATE_");
-	FString NetworkMigrateError("NETWORK_MIGRATE_");
-	FString FileMigrateError("FILE_MIGRATE_");
-	FString UserMigrateError("USER_MIGRATE_");
 
-
-	if (Message.Contains(PhoneMigrateError) || Message.Contains(NetworkMigrateError) || Message.Contains(FileMigrateError) || Message.Contains(UserMigrateError))
-	{
-		FRegexPattern Pattern(TEXT("(\\d+)"));
-		FRegexMatcher Match(Pattern, Message);
-		int32 DataCenterToMigrate = -1;
-		if (Match.FindNext())
-		{
-			FString asd = Match.GetCaptureGroup(1);
-			DataCenterToMigrate = FCString::Atoi(*asd);
-		}
-		//int32 DataCenterToMigrate = FCString::Atoi(*Message.Right(PhoneMigrateError.Len()));
-		for (COMMON::DcOption* DC : MTSession->DCOptions)
-			if (DC->Getid() == DataCenterToMigrate && !DC->Getipv6())
-			{
-				MTSession->SetServerAddress(DC->GetIpAddress());
-				MTSession->SetAuthKey(AuthKey());
-				MTSession->SetPort(DC->Getport());
-				MTSession->Save();
-				Client->Reconnect();
-				Send(Request);
-				break;
-			}
-		return true;
-	}
+// 	if (Message.Contains(PhoneMigrateError) || Message.Contains(NetworkMigrateError) || Message.Contains(FileMigrateError) || Message.Contains(UserMigrateError))
+// 	{
+// 		FRegexPattern Pattern(TEXT("(\\d+)"));
+// 		FRegexMatcher Match(Pattern, Message);
+// 		int32 DataCenterToMigrate = -1;
+// 		if (Match.FindNext())
+// 		{
+// 			FString asd = Match.GetCaptureGroup(1);
+// 			DataCenterToMigrate = FCString::Atoi(*asd);
+// 		}
+// 		//int32 DataCenterToMigrate = FCString::Atoi(*Message.Right(PhoneMigrateError.Len()));
+// 		for (COMMON::DcOption* DC : MTSession->DCOptions)
+// 			if (DC->Getid() == DataCenterToMigrate && !DC->Getipv6())
+// 			{
+// 				MTSession->SetServerAddress(DC->GetIpAddress());
+// 				MTSession->SetAuthKey(AuthKey());
+// 				MTSession->SetPort(DC->Getport());
+// 				MTSession->Save();
+// 				Client->Reconnect();
+// 				Send(Request);
+// 				break;
+// 			}
+// 		return true;
+// 	}
 	return false;
 }
 
