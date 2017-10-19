@@ -8,7 +8,6 @@ class MTProtoSender;
 
 namespace COMMON
 {
-	class InputPeerUser;
 	class User;
 	class Chat;
 };

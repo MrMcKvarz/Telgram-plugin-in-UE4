@@ -126,27 +126,41 @@ TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
 	//if (!IsUserAuthorized()) return TArray<FString>();
 	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 0);
 	Invoke(GetDialogRequest);
-	MESSAGES::Dialogs * GetDialogResult = reinterpret_cast<MESSAGES::Dialogs *> (GetDialogRequest.GetResult());
-	if (GetDialogResult == nullptr)
-		int32 s = 2;
-	//TArray<PRIVATE::Peer*> Peers;
 	TArray<FString> DialogsNames;
-	for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
+	if (GetDialogRequest.GetResult()->GetConstructorID() == 0x71e094f3)
 	{
-		COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
-		Users = GetDialogResult->Getusers();
-		for (COMMON::User * user : GetDialogResult->Getusers())
-			if (user->Getid() == Title->GetUserId())
-				DialogsNames.Add(user->GetFirstName());
-		Chats = GetDialogResult->Getchats();
-		for (COMMON::Chat * chat : GetDialogResult->Getchats())
-			if (chat->Getid() == Title->GetUserId())
-				DialogsNames.Add(chat->Gettitle());
-
+		MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
+		for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
+		{
+			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
+			Users = GetDialogResult->Getusers();
+			for (COMMON::User * user : GetDialogResult->Getusers())
+				if (user->Getid() == Title->GetUserId())
+					DialogsNames.Add(user->GetFirstName());
+			Chats = GetDialogResult->Getchats();
+			for (COMMON::Chat * chat : GetDialogResult->Getchats())
+				if (chat->Getid() == Title->GetUserId())
+					DialogsNames.Add(chat->Gettitle());
+		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT(""));
-	for (auto dialognames : DialogsNames)
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *dialognames);
+	else
+	{
+		MESSAGES::Dialogs * GetDialogResult = reinterpret_cast<MESSAGES::Dialogs *> (GetDialogRequest.GetResult());
+		for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
+		{
+			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
+			Users = GetDialogResult->Getusers();
+			for (COMMON::User * user : GetDialogResult->Getusers())
+				if (user->Getid() == Title->GetUserId())
+					DialogsNames.Add(user->GetFirstName());
+			Chats = GetDialogResult->Getchats();
+			for (COMMON::Chat * chat : GetDialogResult->Getchats())
+				if (chat->Getid() == Title->GetUserId())
+					DialogsNames.Add(chat->Gettitle());
+		}
+	}
+
+	//TArray<PRIVATE::Peer*> Peers;
 
 	return DialogsNames;
 }
@@ -195,14 +209,12 @@ bool TelegramClient::IsUserAuthorized()
 	UserVector.Add(&InputUser);
 	USERS::GetUsers IsAuthorizedRequest(UserVector);
 	bUserAuthorized = true;
-	try
-	{
-		Invoke(IsAuthorizedRequest);
-	}
-	catch (const std::logic_error error)
-	{
+
+	Invoke(IsAuthorizedRequest);
+
+	if (IsAuthorizedRequest.GetLastErrorMessage() == L"AUTH_KEY_UNREGISTERED")
 		bUserAuthorized = false;
-	}
+
 	return bUserAuthorized;
 }
 

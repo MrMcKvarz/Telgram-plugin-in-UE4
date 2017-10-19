@@ -14,7 +14,8 @@ public class Teletalker : ModuleRules
                 "Teletalker/Public/crypto",
                 "Teletalker/Public/extensions",
                 "Teletalker/Public/network",
-                "Teletalker/Public/tl"
+                "Teletalker/Public/tl",
+                "Teletalker/Public/error"
 				// ... add public include paths required here ...
 			}
 			);
@@ -26,7 +27,8 @@ public class Teletalker : ModuleRules
 				"Teletalker/Private/crypto",
                 "Teletalker/Private/extensions",
                 "Teletalker/Private/network",
-                "Teletalker/Private/tl"
+                "Teletalker/Private/tl",
+                "Teletalker/Private/error"
 				// ... add other private include paths required here ...
 			}
 			);

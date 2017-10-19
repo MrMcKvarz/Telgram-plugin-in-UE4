@@ -26,6 +26,7 @@ protected:
 	uint32 _ConstructorID;
 	bool _ContentRelated;
 	bool _Responded;
+	FString LastErrorMessage;
 
 private:
 	bool Sent;
@@ -34,6 +35,12 @@ private:
 	FDateTime SendTime;
 	bool ConfirmReceived;
 public:
+
+	void SetLastErrorMessage(FString NewError) { LastErrorMessage = NewError; }
+	FString GetLastErrorMessage() {return LastErrorMessage; }
+
+	uint32 GetConstructorID() { return _ConstructorID; }
+
 	bool IsContentRelated(){ return _ContentRelated; }
 	void SetContentRelated(bool Value) { _ContentRelated = Value; }
 
