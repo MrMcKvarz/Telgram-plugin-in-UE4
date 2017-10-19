@@ -29,7 +29,7 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 	API_Hash = API_hash;
 	bAuthorized = false;
 	bAuthanticated = false;
-	IsUserAuthorized = true;
+	bUserAuthorized = false;
 }
 
 TelegramClient::~TelegramClient()
@@ -42,16 +42,16 @@ bool TelegramClient::Connect()
 
 	/*Connect here and close only when program is done*/
  	/*This is due to FSocket bug*/
-	if(!Sender.IsValid())
+ 	if(!Sender.IsValid())
 	{
 		Sender = TSharedPtr<MTProtoSender>(new MTProtoSender(ClientSession));
 		Sender->SetClient(this);
 	}
 
-	if(!ClientSession->Load())
+	if(!ClientSession->Load() || ClientSession->GetAuthKey().GetKeyID() == 0)
 	{
 
-		if (!Sender->IsConnected()) Sender->Connect();
+		/*if (!Sender->IsConnected()) Sender->Connect();*/
 		GenerateNewAuthKey();
 		bAuthanticated = true;
 		if (ClientSession->Save())
@@ -83,25 +83,12 @@ void TelegramClient::GenerateNewAuthKey()
 	return;
 }
 
-bool TelegramClient::SendCode(FString PhoneNumber)
+bool TelegramClient::SendCode(FString NewPhoneNumber)
 {
-	if (!Sender->IsConnected()) return false;
-	COMMON::InputUserSelf InputUser;
-	TArray<TLBaseObject*> UserVector;
-	UserVector.Add(&InputUser);
-	USERS::GetUsers IsAuthorizedRequest(UserVector);
-	try
+	this->PhoneNumber = NewPhoneNumber;
+	if(!IsUserAuthorized())
 	{
-		Invoke(IsAuthorizedRequest);
-	}
-	catch (const std::system_error)
-	{
-		IsUserAuthorized = false;
-	}
-	this->PhoneNumber = PhoneNumber;
-	if(!IsUserAuthorized)
-	{
-		AUTH::SendCode SendCodeRequest(false, PhoneNumber, false, API_ID, API_Hash);
+		AUTH::SendCode SendCodeRequest(true, PhoneNumber, true, API_ID, API_Hash);
 		Invoke(SendCodeRequest);
 		PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
 	}
@@ -130,17 +117,18 @@ void TelegramClient::Reconnect()
 	bAuthanticated = false;
 	bool disc = Sender->Disconnect();
 	Sender->UpdateTransport(ClientSession);
-	Sender->Connect();
 	GenerateNewAuthKey();
 	Connect();
 }
 
 TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
 {
-	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 10);
+	//if (!IsUserAuthorized()) return TArray<FString>();
+	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 0);
 	Invoke(GetDialogRequest);
-	MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
-
+	MESSAGES::Dialogs * GetDialogResult = reinterpret_cast<MESSAGES::Dialogs *> (GetDialogRequest.GetResult());
+	if (GetDialogResult == nullptr)
+		int32 s = 2;
 	//TArray<PRIVATE::Peer*> Peers;
 	TArray<FString> DialogsNames;
 	for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
@@ -172,6 +160,7 @@ bool TelegramClient::SingIn(FString Code)
 
 bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
 {
+	if (!IsUserAuthorized()) return false;
 	COMMON::User * User = nullptr;
 	for (COMMON::User * user : Users)
 		if (user->GetFirstName() == UserSendTo)
@@ -196,6 +185,25 @@ bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
 		Result = Invoke(SendMessageRequest);
 	}
 	return Result;	
+}
+
+bool TelegramClient::IsUserAuthorized()
+{
+	if (!Sender->IsConnected()) return false;
+	COMMON::InputUserSelf InputUser;
+	TArray<TLBaseObject*> UserVector;
+	UserVector.Add(&InputUser);
+	USERS::GetUsers IsAuthorizedRequest(UserVector);
+	bUserAuthorized = true;
+	try
+	{
+		Invoke(IsAuthorizedRequest);
+	}
+	catch (const std::logic_error error)
+	{
+		bUserAuthorized = false;
+	}
+	return bUserAuthorized;
 }
 
 

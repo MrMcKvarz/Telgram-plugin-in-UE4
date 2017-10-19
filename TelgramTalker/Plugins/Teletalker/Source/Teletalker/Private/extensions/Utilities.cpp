@@ -32,7 +32,7 @@ int Utilities::Decompress(TArray<uint8> CompressedData, TArray<uint8> &Decompres
 
 		stream.avail_out = unpackedChunk * 4;
 		stream.next_out = (Bytef*)&Decompressed[0];
-		int res = inflate(&stream, Z_NO_FLUSH);
+		res = inflate(&stream, Z_NO_FLUSH);
 		if (res != Z_OK && res != Z_STREAM_END)
 		{
 			inflateEnd(&stream);

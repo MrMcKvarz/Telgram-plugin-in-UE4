@@ -29,7 +29,7 @@ class TELETALKER_API TelegramClient
 	TArray<COMMON::User*> Users;
 	TArray<COMMON::Chat *> Chats;
 public:
-	bool IsUserAuthorized; // presentation only
+	bool bUserAuthorized; // presentation only
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
 	~TelegramClient();
 	bool Connect();
@@ -40,6 +40,7 @@ public:
 	bool SingIn(FString Code);
 	
 	bool SendMessage(FString UserSendTo, FString Message);
+	bool IsUserAuthorized();
 protected:
 	void GenerateNewAuthKey();
 };

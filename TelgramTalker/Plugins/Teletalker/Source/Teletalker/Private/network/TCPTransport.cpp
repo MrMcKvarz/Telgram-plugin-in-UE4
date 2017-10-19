@@ -60,7 +60,7 @@ TArray<unsigned char> TCPTransport::Receive()
 	int32 PacketLength = BinaryReader(PacketLengthBytes.GetData(), 4).ReadInt();
 
 	TArray<uint8> SendCounterBytes = Client->Read(4);
-	int32 SendCounter = BinaryReader(SendCounterBytes.GetData(), 4).ReadInt();
+	int32 SentCounter = BinaryReader(SendCounterBytes.GetData(), 4).ReadInt();
 
 	TArray<uint8> Packet = Client->Read(PacketLength - 12);
 
@@ -69,7 +69,7 @@ TArray<unsigned char> TCPTransport::Receive()
  
 	BinaryWriter Writer;
 	Writer.WriteInt(PacketLength);
-	Writer.WriteInt(SendCounter);
+	Writer.WriteInt(SentCounter);
 	Writer.Write(Packet.GetData(), Packet.Num());
 	uint32 CRC = GetCrc(Writer.GetBytes().GetData(), Writer.GetWrittenBytesCount());
 	if (Hash != CRC) //TODO return error?

@@ -83,7 +83,6 @@ void BinaryWriter::Flush()
 
 bool BinaryWriter::TGWriteBytes(const unsigned char * Value, int32 Size)
 { 
-	/*We write data in little endianess if size < 254 and big endianess otherwise*/
 	if (Value == nullptr || Size < 0) return false;
 	int32 padding;
 	if (Size < 254)
@@ -122,7 +121,6 @@ bool BinaryWriter::TGWriteString(FString Value)
 {
 	FString Test(Value);
 	auto UTF8Value = TCHAR_TO_UTF8(*Value);
-	std::string MySpecialString(TCHAR_TO_UTF8(*Test));
 	return TGWriteBytes((unsigned char *)UTF8Value, strlen(UTF8Value));
 }
 
@@ -148,6 +146,10 @@ int32 BinaryWriter::GetWrittenBytesCount()
 
 bool BinaryWriter::WriteBool(bool Value)
 {
+	if (Value)
+		WriteInt(0x997275b5);
+	else
+		WriteInt(0xbc799737);
 	return true;
 }
 

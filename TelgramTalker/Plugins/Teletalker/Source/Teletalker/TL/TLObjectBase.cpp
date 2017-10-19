@@ -26,6 +26,10 @@ bool TLBaseObject::NeedResend()
 	return Dirty || (_ContentRelated && !ConfirmReceived && ((FDateTime::Now() - SendTime) > FApp::GetDeltaTime()));
 }
 
+TLBaseObject::~TLBaseObject()
+{
+}
+
 bool TLBaseObject::operator==(const TLBaseObject &Compartment) const
 {
 	if (

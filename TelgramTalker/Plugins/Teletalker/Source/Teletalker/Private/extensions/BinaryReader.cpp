@@ -73,16 +73,16 @@ signed long long BinaryReader::ReadLong()
 	return result;
 }
 
-TArray<unsigned char> BinaryReader::Read(int32 Size)
+TArray<unsigned char> BinaryReader::Read(int32 NewSize)
 {
 	int result = 0;
 	TArray<unsigned char> Temp;
 	if (Offset < this->Size)
 	{
-		Temp.Reserve(Size);
-		for (int i = Offset; i < Size + Offset; i++)
+		Temp.Reserve(NewSize);
+		for (int i = Offset; i < NewSize + Offset; i++)
 			Temp.Push(Buff[i]);
-		Offset += Size;
+		Offset += NewSize;
 		return Temp;
 	}
 	return Temp;

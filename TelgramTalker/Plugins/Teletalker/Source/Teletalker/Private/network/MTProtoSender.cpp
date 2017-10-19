@@ -17,6 +17,9 @@
 #include <system_error>
 #include "TelegramClient.h"
 
+/*10/18/2017*/
+#include <fstream>
+#include <string>
 
 MTProtoSender::MTProtoSender(Session * NewSession)
 	: MTProtoPlainSender(NewSession->GetServerAddress(), NewSession->GetPort())
@@ -342,9 +345,17 @@ bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request
 	{
 		uint32 ErrorLength = Reader.ReadInt();
 		FString Error = Reader.TGReadString();
+
   		ServerMessagesNeedAcknowledges.Add(RequestID);
 		SendAcknowledges();
 		Request.SetDirty(true);
+
+		std::string text = std::string(TCHAR_TO_UTF8(*Error));
+		std::ofstream file;
+		FString Path = (FPaths::GamePluginsDir() + "log.txt");
+		file.open(*Path, std::ios_base::app);
+		file << text << "\n";
+		file.close();
 
 		HandleRPCError(Error, Request);
 			
@@ -398,7 +409,7 @@ bool MTProtoSender::HandleRPCError(FString Message, TLBaseObject &Request)
 {
 	if (Message == L"AUTH_KEY_UNREGISTERED")
 	{
-		throw(std::system_error(EDOM, std::generic_category()));
+		throw(std::logic_error("AUTH_KEY_UNREGISTERED"));
 		return false;
 	}
 	FString PhoneMigrateError("PHONE_MIGRATE_");
@@ -447,9 +458,8 @@ TArray<uint8 > MTProtoSender::CalculateMessageKey(uint8 * Data, int32 Size)
 bool MTProtoSender::Connect()
 {
 	if (Transport == nullptr) return false;
-	Connected = true;
-
-	return Transport->Connect();
+	Connected = Transport->Connect();;
+	return Connected;
 }
 
 bool MTProtoSender::IsConnected()
@@ -458,9 +468,9 @@ bool MTProtoSender::IsConnected()
 	return Connected;
 }
 
-void MTProtoSender::SetClient(TelegramClient *Client)
+void MTProtoSender::SetClient(TelegramClient *NewClient)
 {
-	this->Client = Client;
+	this->Client = NewClient;
 }
 
 bool MTProtoSender::UpdateTransport(Session * NewSession)
@@ -469,5 +479,6 @@ bool MTProtoSender::UpdateTransport(Session * NewSession)
 	FIPv4Address TelegramServer;
 	if (!FIPv4Address::Parse(NewSession->GetServerAddress(), TelegramServer)) return false;
 	Transport = new TCPTransport(TelegramServer, NewSession->GetPort());
+	Connected = false;
 	return false;
 }

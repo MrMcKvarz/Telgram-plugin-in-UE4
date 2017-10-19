@@ -20,7 +20,7 @@ public:
 	virtual void OnResponce(BinaryReader& Reader) {}
 	TLBaseObject * GetResult() { return this; }
 
-	
+	virtual ~TLBaseObject();
 
 protected:
 	uint32 _ConstructorID;

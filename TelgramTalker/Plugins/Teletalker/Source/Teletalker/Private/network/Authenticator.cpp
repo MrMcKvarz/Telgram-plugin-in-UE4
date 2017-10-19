@@ -5,7 +5,7 @@
 #include <bitset>
 #include "crypto/Crypto.h"
 #include "crypto/AuthKey.h"
-
+#include "Algo/Reverse.h"
 #include "Networking.h"
 
 #include <thread>
@@ -111,14 +111,17 @@ AuthKey Authenticator::Authenticate(FString IP, int32 Port)
 	/*Generate encrypted data*/
 	BinaryWriter DataWriter;
 	DataWriter.WriteInt(0x83c95aec);
+	Algo::Reverse(PQBytes);
 	DataWriter.TGWriteBytes(PQBytes.GetData(), PQBytes.Num());
 
 	int64 Factor;
 	int64 Factor2;
 	Crypto::Factorize(&PQ, &Factor, &Factor2);
 
- 	int32 Min = FMath::Min(Factor, Factor2);
- 	int32 Max = FMath::Max(Factor, Factor2);
+ 	int32 MinTemp = FMath::Min(Factor, Factor2);
+ 	int32 MaxTemp = FMath::Max(Factor, Factor2);
+	int32 Min = BinaryReader((uint8 *)&MinTemp, 4).ReadBigInt();
+	int32 Max = BinaryReader((uint8 *)&MaxTemp, 4).ReadBigInt();
 	DataWriter.TGWriteBytes((uint8 *)&Min, 4);
 	DataWriter.TGWriteBytes((uint8 *)&Max, 4);
 	DataWriter.Write(Nonce.GetData(), Nonce.Num());
@@ -177,6 +180,7 @@ AuthKey Authenticator::Authenticate(FString IP, int32 Port)
 	DHWriter.Write(Fingerprint.GetData(), 8);
 
 	BN_bn2bin(encrypted, CipherData);
+
 	DHWriter.TGWriteBytes(CipherData, 256);
 
 	int32 bytessentdh = Sender.Send(DHWriter.GetBytes().GetData(), DHWriter.GetWrittenBytesCount());
