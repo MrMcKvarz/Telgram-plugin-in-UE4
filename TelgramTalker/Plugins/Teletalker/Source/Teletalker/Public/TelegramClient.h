@@ -15,7 +15,7 @@ namespace COMMON
 
 class TELETALKER_API TelegramClient
 {
-	Session * ClientSession;
+	TSharedPtr<Session> ClientSession;
 	int32 API_ID;
 	FString API_Hash;
 

@@ -10,7 +10,7 @@ protected:
 	int32 Sequence;
 	int32 TimeOffset;
 	int64 LastMessageID;
-	TCPTransport * Transport;
+	TSharedPtr<TCPTransport> Transport;
 public:
 	MTProtoPlainSender(FString IP, int32 Port);
 	bool Connect();

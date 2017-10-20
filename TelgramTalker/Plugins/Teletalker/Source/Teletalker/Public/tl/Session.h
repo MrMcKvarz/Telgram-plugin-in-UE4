@@ -29,7 +29,8 @@ public:
 	bool Load();
 	bool Delete();
 	
-	TArray<COMMON::DcOption*> DCOptions;
+	//TArray<TSharedPtr<COMMON::DcOption>> DCOptions;
+	TArray<COMMON::DcOption *> DCOptions;
 
 	void GenerateNewSessionID();
 

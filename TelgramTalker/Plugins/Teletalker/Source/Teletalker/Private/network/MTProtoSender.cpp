@@ -18,20 +18,15 @@
 #include <fstream>
 #include <string>
 
-MTProtoSender::MTProtoSender(Session * NewSession)
-	: MTProtoPlainSender(NewSession->GetServerAddress(), NewSession->GetPort())
+MTProtoSender::MTProtoSender(Session &NewSession) : MTProtoPlainSender(NewSession.GetServerAddress(), NewSession.GetPort())
 {
 	Connected = false;
-	if (NewSession == nullptr)
-		MTSession = new Session("MTSession");
-	else
-		MTSession = NewSession;
-
+	MTSession = &NewSession;
 }
 
 int32 MTProtoSender::Send(TLBaseObject &Message)
 {
-	if (Transport == nullptr) return 0;
+	if (!Transport.IsValid()) return 0;
 	SendAcknowledges();
 	uint32 BytesSent = SendPacket(Message);
 	ClientMessagesNeedAcknowledges.Add(&Message);
@@ -40,8 +35,8 @@ int32 MTProtoSender::Send(TLBaseObject &Message)
 
 TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 {
-	if (Transport == nullptr) return TArray<uint8 >();
-	ErrorHandler = new Exception(this, &Message);
+	if (!Transport.IsValid()) return TArray<uint8>();
+	ErrorHandler = MakeShareable(new Exception(this, &Message));
 	TArray<uint8> Received;
 	while(!Message.IsConfirmReceived() || !Message.IsResponded())
 	{
@@ -122,13 +117,11 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 
 	if (Response == 0xedab447b) // bad server salt
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));	
 		ServerMessagesNeedAcknowledges.Remove(MTSession->GetLastMsgID());
 		return HandleBadServerSalt(Message, Request);
 	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
 		return HandleRPCResult(Message, Request);
 	}
 	if (Response == 0x347773c5)  // pong
@@ -136,24 +129,20 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 
 	if (Response == 0x73f1f8dc)  // msg_container
 	{
-		UE_LOG(LogTemp, Warning, TEXT("msg container"));
 		return HandleMessageContainer(Message, Request);		
 	}
 	if (Response == 0x3072cfa1)  // gzip_packed
 	{
-		UE_LOG(LogTemp, Warning, TEXT("gzip packed"));
 		return HandleGzipPacked(Message, Request);
 	}
 	if (Response == 0xa7eff811)  // bad_msg_notification
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Bad msg notify"));
 		return HandleBadMessageNotify(Message, Request);
 	}
 
 	// msgs_ack, it may handle the request we wanted
 	if (Response == 0x62d6b459)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("msg ack"));
 		MessageReader.SetOffset(0);
 		TLBaseObject * Ack = MessageReader.TGReadObject();
 		if (Ack == nullptr) return false;
@@ -167,6 +156,7 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 						ConfirmMessage->SetConfirmReceived(true);
 			}
 		}
+		delete Ack;
 		return true;
 	}
 
@@ -174,6 +164,7 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 	{
 		MessageReader.SetOffset(0);
 		TLBaseObject *Result = MessageReader.TGReadObject();
+		delete Result;
 		return true;
 	}
 
@@ -189,9 +180,9 @@ TArray<uint8 > MTProtoSender::DecodeMessage(TArray<uint8> Message)
 	unsigned long long RemoteAuthID = Reader.ReadLong();
 	if(RemoteAuthID != MTSession->GetAuthKey().GetKeyID())
 		UE_LOG(LogTemp, Error, TEXT("Auth id from server is invalid"));
-	TArray<uint8 > RemoteMessageKey = Reader.Read(16);
+	TArray<uint8> RemoteMessageKey = Reader.Read(16);
 
-	TArray<uint8 > Key, IV;
+	TArray<uint8> Key, IV;
 	Crypto::CalculateKey(MTSession->GetAuthKey().GetKey(), RemoteMessageKey,/*out*/ Key,/*out*/ IV, false);
 
 	AES_KEY DecryptAESKey;
@@ -349,12 +340,12 @@ bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request
 		SendAcknowledges();
 		Request.SetDirty(true);
 		Request.SetResponded(true);
-		std::string text = std::string(TCHAR_TO_UTF8(*Error));
-		std::ofstream file;
-		FString Path = (FPaths::GamePluginsDir() + "log.txt");
-		file.open(*Path, std::ios_base::app);
-		file << text << "\n";
-		file.close();
+// 		std::string text = std::string(TCHAR_TO_UTF8(*Error));
+// 		std::ofstream file;
+// 		FString Path = (FString(R"(D:\TeleRealTest)") + "log.txt");
+// 		file.open(*Path, std::ios_base::app);
+// 		file << text << "\n";
+// 		file.close();
 		ErrorHandler->HandleException(Error, ErrorCode);
 			
 		return false;
@@ -445,28 +436,28 @@ TArray<uint8 > MTProtoSender::CalculateMessageKey(uint8 * Data, int32 Size)
 
 bool MTProtoSender::Connect()
 {
-	if (Transport == nullptr) return false;
+	if (!Transport.IsValid()) return false;
 	Connected = Transport->Connect();;
 	return Connected;
 }
 
 bool MTProtoSender::IsConnected()
 {
-	if (!Transport) return false;
+	if (!Transport.IsValid()) return false;
 	return Connected;
 }
 
-void MTProtoSender::SetClient(TelegramClient *NewClient)
+void MTProtoSender::SetClient(TelegramClient * NewClient)
 {
 	this->Client = NewClient;
 }
 
 bool MTProtoSender::UpdateTransport(Session * NewSession)
 {
-	if (Transport) delete Transport;
+	if (!Transport.IsValid()) Transport.Reset();
 	FIPv4Address TelegramServer;
 	if (!FIPv4Address::Parse(NewSession->GetServerAddress(), TelegramServer)) return false;
-	Transport = new TCPTransport(TelegramServer, NewSession->GetPort());
+	Transport = MakeShareable(new TCPTransport(TelegramServer, NewSession->GetPort()));
 	Connected = false;
 	return false;
 }

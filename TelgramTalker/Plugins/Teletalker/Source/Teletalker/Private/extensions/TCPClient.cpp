@@ -46,7 +46,7 @@ int32 TCPClient::Write(unsigned char * Data, int32 Size)
 TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 {
 	int32 BytesToReceive = Size;
-	uint8 Data[500000];
+	uint8 * Data = new uint8[Size];
 	TArray<unsigned char> Temp;
 	Temp.Reserve(Size);
 	do
@@ -62,6 +62,7 @@ TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 		}
 		BytesToReceive -= BytesRead;
 	} while (BytesToReceive != 0);
+	delete Data;
 	return Temp;
 }
 

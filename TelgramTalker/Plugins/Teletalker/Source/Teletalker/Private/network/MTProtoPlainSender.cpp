@@ -15,12 +15,12 @@ MTProtoPlainSender::MTProtoPlainSender(FString IP, int32 Port)
 	FIPv4Address TelegramServer;
 	FIPv4Address::Parse(IP, TelegramServer);
 
-	Transport = new TCPTransport(TelegramServer, Port);
+	Transport = MakeShareable(new TCPTransport(TelegramServer, Port));
 }
 
 bool MTProtoPlainSender::Connect()
 {
-	if (Transport == nullptr) return false;
+	if (!Transport.IsValid()) return false;
 	return Transport->Connect();	
 }
 
@@ -31,7 +31,7 @@ bool MTProtoPlainSender::Disconnect()
 
 int32 MTProtoPlainSender::Send(unsigned char * Data, int32 Size)
 {
-	if (Transport == nullptr) return 0;
+	if (!Transport.IsValid()) return 0;
 	BinaryWriter Writer;
 	Writer.WriteLong(0); //auth key id = 0 since we sending plain text message
 	Writer.WriteLong(GetNewMessageID()); //long
@@ -45,7 +45,7 @@ int32 MTProtoPlainSender::Send(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> MTProtoPlainSender::Receive(int32 Size)
 {
-	if (Transport == nullptr) return TArray<unsigned char>();
+	if (!Transport.IsValid()) return TArray<unsigned char>();
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	BinaryReader Reader(Transport->Receive().GetData(), Size);
 	int64 auth = Reader.ReadLong(); // auth_key_id

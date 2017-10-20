@@ -9,13 +9,14 @@ class TelegramClient;
 
 class TELETALKER_API MTProtoSender : public MTProtoPlainSender
 {
-	Exception * ErrorHandler;
+	TSharedPtr<Exception> ErrorHandler;
 	Session * MTSession;
-	TelegramClient *Client;
+	TelegramClient * Client;
+
 	TArray<uint64> ServerMessagesNeedAcknowledges;
 	TArray<TLBaseObject*> ClientMessagesNeedAcknowledges;
 public:
-	MTProtoSender(Session * NewSession);
+	MTProtoSender(Session &NewSession);
 	int32 Send(TLBaseObject &Message); // TLObject
 	TArray<uint8> Receive(TLBaseObject &Message);
 

@@ -53,7 +53,7 @@ Session::Session(FString SessionUserdID)
 	Salt = 0;
 	GenerateNewSessionID();
 	LastMsgID = 0;
-	SessionFilePath = FPaths::GamePluginsDir();
+	SessionFilePath = FString(L"D:\\TeleRealTest\\");
 }
 
 bool Session::Save()

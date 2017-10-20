@@ -24,7 +24,7 @@ THIRD_PARTY_INCLUDES_END
 
 TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_hash)
 {
-	ClientSession = new Session(SessionName);
+	ClientSession = MakeShareable(new Session(SessionName));
 	API_ID = API_id;
 	API_Hash = API_hash;
 	bAuthorized = false;
@@ -34,7 +34,6 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 
 TelegramClient::~TelegramClient()
 {
-	if (ClientSession) delete ClientSession;
 }
 
 bool TelegramClient::Connect()
@@ -44,20 +43,18 @@ bool TelegramClient::Connect()
  	/*This is due to FSocket bug*/
  	if(!Sender.IsValid())
 	{
-		Sender = TSharedPtr<MTProtoSender>(new MTProtoSender(ClientSession));
+		Sender = MakeShareable((new MTProtoSender(*ClientSession.Get())));
 		Sender->SetClient(this);
 	}
 
 	if(!ClientSession->Load() || ClientSession->GetAuthKey().GetKeyID() == 0)
 	{
-
-		/*if (!Sender->IsConnected()) Sender->Connect();*/
 		GenerateNewAuthKey();
 		bAuthanticated = true;
 		if (ClientSession->Save())
 			UE_LOG(LogTemp, Warning, TEXT("Session saved"));
 	}
-	Sender->UpdateTransport(ClientSession);
+	Sender->UpdateTransport(ClientSession.Get());
 	if (!Sender->IsConnected()) Sender->Connect();
 
 	HELP::GetConfig ConfigRequest;
@@ -92,13 +89,6 @@ bool TelegramClient::SendCode(FString NewPhoneNumber)
 		Invoke(SendCodeRequest);
 		PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
 	}
-/*Crunch power
-// 	FString Path;
-// 	Path += FPaths::GamePluginsDir();
-// 	Path += "CrunchPower.txt";
-// 	FString PhoneCode;
-// 	(!FFileHelper::LoadFileToString(PhoneCode, Path.GetCharArray().GetData()));
-*/	
 	return true;
 }
 
@@ -116,7 +106,7 @@ void TelegramClient::Reconnect()
 	ClientSession->Save();
 	bAuthanticated = false;
 	bool disc = Sender->Disconnect();
-	Sender->UpdateTransport(ClientSession);
+	Sender->UpdateTransport(ClientSession.Get());
 	GenerateNewAuthKey();
 	Connect();
 }
@@ -160,8 +150,6 @@ TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
 		}
 	}
 
-	//TArray<PRIVATE::Peer*> Peers;
-
 	return DialogsNames;
 }
 
@@ -194,7 +182,7 @@ bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
 			Message, 
 			Crypto::GetRandomLong(), 
 			nullptr, 
-			TArray<PRIVATE::MessageEntity *>() );
+			TArray<TLBaseObject *>() );
 
 		Result = Invoke(SendMessageRequest);
 	}
