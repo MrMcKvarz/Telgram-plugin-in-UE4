@@ -38,9 +38,11 @@ TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 	if (!Transport.IsValid()) return TArray<uint8>();
 	ErrorHandler = MakeShareable(new Exception(this, &Message));
 	TArray<uint8> Received;
+	UE_LOG(LogTemp, Warning, TEXT("Start receive loop"));
 	while(!Message.IsConfirmReceived() || !Message.IsResponded())
 	{
 		TArray<uint8> Response = Transport->Receive();
+		UE_LOG(LogTemp, Warning, TEXT("%d bytes received"), Response.Num());
 		if (Response.Num() == 0)
 		{
 			TArray<uint64> MessagesNeedResend;
@@ -50,6 +52,7 @@ TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 			continue;
 		}
 		auto Decoded = DecodeMessage(Response);
+		UE_LOG(LogTemp, Warning, TEXT("%d bytes decoded"), Decoded.Num());
 		ProcessMessage(Decoded, Message);
 	}
 	return Received;
@@ -115,13 +118,16 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
 	uint32 Response = MessageReader.ReadInt();
 
+	UE_LOG(LogTemp, Warning, TEXT("procces message start"));
 	if (Response == 0xedab447b) // bad server salt
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));	
 		ServerMessagesNeedAcknowledges.Remove(MTSession->GetLastMsgID());
 		return HandleBadServerSalt(Message, Request);
 	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("rpc_result"));
 		return HandleRPCResult(Message, Request);
 	}
 	if (Response == 0x347773c5)  // pong
@@ -129,20 +135,25 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 
 	if (Response == 0x73f1f8dc)  // msg_container
 	{
+		UE_LOG(LogTemp, Warning, TEXT("msg container"));
 		return HandleMessageContainer(Message, Request);		
 	}
 	if (Response == 0x3072cfa1)  // gzip_packed
 	{
+		UE_LOG(LogTemp, Warning, TEXT("gzip packed"));
 		return HandleGzipPacked(Message, Request);
 	}
 	if (Response == 0xa7eff811)  // bad_msg_notification
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Bad msg notify"));
 		return HandleBadMessageNotify(Message, Request);
 	}
+
 
 	// msgs_ack, it may handle the request we wanted
 	if (Response == 0x62d6b459)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("msg ack"));
 		MessageReader.SetOffset(0);
 		TLBaseObject * Ack = MessageReader.TGReadObject();
 		if (Ack == nullptr) return false;
@@ -162,6 +173,7 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 
 	if (TLObjects().Contains(Response))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("just object"));
 		MessageReader.SetOffset(0);
 		TLBaseObject *Result = MessageReader.TGReadObject();
 		delete Result;
@@ -333,9 +345,10 @@ bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request
 
 	if (InnerCode == 0x2144ca19) //RPC Error
 	{
+
 		uint32 ErrorCode = Reader.ReadInt();
 		FString Error = Reader.TGReadString();
-
+		UE_LOG(LogTemp, Warning, TEXT("prc error: %s"), *Error);
   		ServerMessagesNeedAcknowledges.Add(RequestID);
 		SendAcknowledges();
 		Request.SetDirty(true);
@@ -354,17 +367,21 @@ bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request
 
 	if (InnerCode == 0x3072cfa1) //GZip packed
 	{
+		UE_LOG(LogTemp, Warning, TEXT("gzip"));
 		const uint32 CHUNK = 16384;
 		TArray<uint8> CompressedData;
 		TArray<uint8> DecompressedData;
+		UE_LOG(LogTemp, Warning, TEXT("begin gread bytes"));
 		CompressedData = Reader.TGReadBytes();
 		int32 Result = Utilities::Decompress(CompressedData, DecompressedData);;
-
+		UE_LOG(LogTemp, Warning, TEXT("result: %d"), Result);
 		BinaryReader GzipReader(DecompressedData.GetData(), DecompressedData.Num());
+		UE_LOG(LogTemp, Warning, TEXT("on responce begin"))
 		Request.OnResponce(GzipReader);
 	}
 	else
 	{
+		UE_LOG(LogTemp, Warning, TEXT("no compressed responce"));
 		Reader.SetOffset(12);
 		Request.OnResponce(Reader);
 	}

@@ -36,7 +36,7 @@ int64 GetInt64Big(uint8 * Value)
 	if (Value == nullptr) return 0;
 	int64 result = 0;
 
-	for (int n = 0; n < 8; n++)
+	for (int32 n = 0; n < 8; n++)
 		result = (result << 8) + Value[n];
 
 	return result;

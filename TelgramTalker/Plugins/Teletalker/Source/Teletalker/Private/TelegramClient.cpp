@@ -17,7 +17,6 @@
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
 #include "tl/Session.h"
-
 THIRD_PARTY_INCLUDES_END
 #undef UI
 
@@ -56,16 +55,15 @@ bool TelegramClient::Connect()
 	}
 	Sender->UpdateTransport(ClientSession.Get());
 	if (!Sender->IsConnected()) Sender->Connect();
-
 	HELP::GetConfig ConfigRequest;
 
 	COMMON::InitConnection InitRequest(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
 		ClientSession->GetLangPack(), ClientSession->GetLangCode(), &ConfigRequest);
 	COMMON::InvokeWithLayer InvokeWithLayerRequest(71, &InitRequest);
-
 	Invoke(InvokeWithLayerRequest);
+	UE_LOG(LogTemp, Warning, TEXT("Invoked"));
 	COMMON::Config* ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest.GetResult());
-
+	UE_LOG(LogTemp, Warning, TEXT("casted"));
 	ClientSession->DCOptions = ConfigResult->GetDcOptions();
 
 	UE_LOG(LogTemp, Warning, TEXT("Telegram Client connect"));
@@ -95,8 +93,11 @@ bool TelegramClient::SendCode(FString NewPhoneNumber)
 bool TelegramClient::Invoke(TLBaseObject &Request)
 {
 	if (!Request.IsContentRelated()) return false;
+	UE_LOG(LogTemp, Warning, TEXT("Send begin"));
 	int32 InitSent = Sender->Send(Request);
+	UE_LOG(LogTemp, Warning, TEXT("receive begin"));
 	Sender->Receive(Request);
+
 	return true;
 }
 

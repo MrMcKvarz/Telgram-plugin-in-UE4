@@ -57,7 +57,7 @@ TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 		if (Receive)
 		{
 
-			for (int i = 0; i < BytesRead; i++)
+			for (int32 i = 0; i < BytesRead; i++)
 				Temp.Add(Data[i]);
 		}
 		BytesToReceive -= BytesRead;

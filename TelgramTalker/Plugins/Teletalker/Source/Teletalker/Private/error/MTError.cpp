@@ -26,12 +26,13 @@ bool Exception::HandleException(FString NewError, int32 NewErrorCode)
 
 	}
 	break;
-	case 401:
-		if (Error.Contains("AUTH_KEY_UNREGISTERED"))
-			return HandleAuthKeyUnregistered();
+	case (401, 400, 403, 404, 420):
+		return NotifyRequest();
 	break;
 	default:
-
+	{
+		return NotifyRequest();
+	}
 		break;
 	}
 	return true;
@@ -69,7 +70,7 @@ bool Exception::HandeMigrate(FString ErrorMessage)
 	return true;
 }
 
-bool Exception::HandleAuthKeyUnregistered()
+bool Exception::NotifyRequest()
 {
 	if (!Request) return false;
 	Request->SetLastErrorMessage(Error);

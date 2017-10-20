@@ -7,7 +7,7 @@ BinaryReader::BinaryReader(const unsigned char * Data, int32 Size)
 	if (Data != nullptr && Size > 0)
 	{
 		Buff.Reserve(Size * 2);
-		for(int i = 0; i < Size; i++)
+		for(int32 i = 0; i < Size; i++)
 			Buff.Push(Data[i]);
 	}
 	this->Size = Size;
@@ -38,7 +38,7 @@ int32 BinaryReader::ReadBigInt()
 	{
 		unsigned char * bits = (unsigned char *)Buff.GetData();
 		/*read little endian*/
-		for (int n = Offset; n < Offset + 4; n++)
+		for (int32 n = Offset; n < Offset + 4; n++)
 			result = (result << 8) + bits[n];
 		Offset += 4;
 	}
@@ -52,7 +52,7 @@ int32 BinaryReader::ReadInt()
 	{
 		unsigned char * bits = (unsigned char *) Buff.GetData();
 		/*read little endian*/
-		for (int n = 3 + Offset; n >= 0 + Offset; n--)
+		for (int32 n = 3 + Offset; n >= 0 + Offset; n--)
 			result = (result << 8) + bits[n];
 		Offset += 4;
 	}
@@ -66,7 +66,7 @@ signed long long BinaryReader::ReadLong()
 	{
 		unsigned char * bits = (unsigned char *)Buff.GetData();
 		/*read little endian*/
-		for (int n = 7 + Offset; n >= 0 + Offset; n--)
+		for (int32 n = 7 + Offset; n >= 0 + Offset; n--)
 			result = (result << 8) + bits[n];
 		Offset += 8;
 	}
@@ -75,12 +75,12 @@ signed long long BinaryReader::ReadLong()
 
 TArray<unsigned char> BinaryReader::Read(int32 NewSize)
 {
-	int result = 0;
+	int32 result = 0;
 	TArray<unsigned char> Temp;
 	if (Offset < this->Size)
 	{
 		Temp.Reserve(NewSize);
-		for (int i = Offset; i < NewSize + Offset; i++)
+		for (int32 i = Offset; i < NewSize + Offset; i++)
 			Temp.Push(Buff[i]);
 		Offset += NewSize;
 		return Temp;
@@ -119,11 +119,12 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 	int32 padding;
 	TArray<uint8> data;
 	unsigned char FirstByte = this->ReadByte();
+	UE_LOG(LogTemp, Warning, TEXT("tgread fisrt byte len %d"), FirstByte)
 	if(FirstByte >= 254)
 	{
 		length = this->ReadByte() + (this->ReadByte() << 8) + (this->ReadByte() << 16);
 		padding = length % 4;
-
+		UE_LOG(LogTemp, Warning, TEXT("tgread bytes len %d"), length);
 	}
 	else
 	{
@@ -134,6 +135,7 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 	if(padding > 0)
 	{
 		padding = 4 - padding;
+		UE_LOG(LogTemp, Warning, TEXT("tgread padding len %d"), padding);
 		this->Read(padding);
 	}
 	return data;

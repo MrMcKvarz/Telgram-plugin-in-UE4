@@ -1,7 +1,7 @@
 #include "Utilities.h"
 #include <zlib.h>
 
-int Utilities::Decompress(TArray<uint8> CompressedData, TArray<uint8> &DecompressedData)
+int32 Utilities::Decompress(TArray<uint8> CompressedData, TArray<uint8> &DecompressedData)
 {
 	/*
 	returning res code means following:
@@ -19,11 +19,12 @@ int Utilities::Decompress(TArray<uint8> CompressedData, TArray<uint8> &Decompres
 	stream.opaque = 0;
 	stream.avail_in = 0;
 	stream.next_in = 0;
-	int res = inflateInit2(&stream, 16 + MAX_WBITS);
+	int32 res = inflateInit2(&stream, 16 + MAX_WBITS);
 	if (res != Z_OK) 
 	{
 		return res;
 	}
+	UE_LOG(LogTemp, Warning, TEXT("inflateinit ok"));
 	stream.avail_in = packedLen;
 	stream.next_in = reinterpret_cast<Bytef*>(CompressedData.GetData());
 	stream.avail_out = 0;
@@ -35,6 +36,7 @@ int Utilities::Decompress(TArray<uint8> CompressedData, TArray<uint8> &Decompres
 		res = inflate(&stream, Z_NO_FLUSH);
 		if (res != Z_OK && res != Z_STREAM_END)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("inflate failed "));
 			inflateEnd(&stream);
 			return res;
 		}
@@ -46,10 +48,13 @@ int Utilities::Decompress(TArray<uint8> CompressedData, TArray<uint8> &Decompres
 		return res;
 	}
 	//result.AddZeroed(result.Num() - (stream.avail_out >> 2));
+
 	DecompressedData.Reserve(stream.total_out);
+
 	for (uLong i = 0; i < stream.total_out; i++)
 		DecompressedData.Add(Decompressed[i]);
 	//result.resize();
+	UE_LOG(LogTemp, Warning, TEXT("decompressed %d"), DecompressedData.Num())
 	inflateEnd(&stream);
 
 	return res;

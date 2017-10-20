@@ -62,7 +62,7 @@ int64 MTProtoPlainSender::GetNewMessageID()
 	auto sec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch());
 
 	double nanoseconds = nano.count() - (sec.count() * 1e+9);
-	long long new_msg_id = ((sec.count() << 32) | int(nanoseconds * 2));
+	long long new_msg_id = ((sec.count() << 32) | int32(nanoseconds * 2));
 
 	if (LastMessageID >= new_msg_id)
 		new_msg_id = LastMessageID + 4;

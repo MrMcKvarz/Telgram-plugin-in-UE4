@@ -9,7 +9,7 @@ class TELETALKER_API BinaryWriter
 {
 	const int32 DefaultSize = 2048;
 	TArray<unsigned char> Buff;
-	int WrittenCount;
+	int32 WrittenCount;
 public:
 	BinaryWriter();
 	~BinaryWriter();

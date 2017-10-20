@@ -66,15 +66,15 @@ void Crypto::Factorize(long long *pq, long long *p, long long *q)
 {
 	unsigned long long what = *pq;
 
-	int it = 0;
+	int32 it = 0;
 
 	unsigned long long g = 0;
-	int i;
+	int32 i;
 	for (i = 0; i < 3 || it < 1000; i++) {
-		int q1 = ((rand() & 15) + 17) % what;
+		int32 q1 = ((rand() & 15) + 17) % what;
 		unsigned long long x = (long long)rand() % (what - 1) + 1, y = x;
-		int lim = 1 << (i + 18);
-		int j;
+		int32 lim = 1 << (i + 18);
+		int32 j;
 		for (j = 1; j < lim; j++) {
 			++it;
 			unsigned long long a = x, b = x, c = q1;

@@ -43,7 +43,7 @@ class TELETALKER_API Exception
 	TLBaseObject * Request;
 	void CreateException(FString NewError, int32 NewErrorCode);
 	bool HandeMigrate(FString ErrorMessage);
-	bool HandleAuthKeyUnregistered();
+	bool NotifyRequest();
 public:
 	Exception(MTProtoSender * NewSender, TLBaseObject * Request);
 
