@@ -40,6 +40,7 @@ public:
 	
 	bool SendMessage(FString UserSendTo, FString Message);
 	bool IsUserAuthorized();
+	bool LogOut();
 protected:
 	void GenerateNewAuthKey();
 };

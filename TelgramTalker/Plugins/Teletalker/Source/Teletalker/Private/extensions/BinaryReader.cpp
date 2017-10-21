@@ -24,7 +24,7 @@ BinaryReader::~BinaryReader()
 	Buff.Empty();
 }
 
-unsigned char BinaryReader::ReadByte()
+uint8 BinaryReader::ReadByte()
 {
 	if (Offset < Size)
 		return Buff[Offset++];
@@ -59,9 +59,9 @@ int32 BinaryReader::ReadInt()
 	return result;
 }
 
-signed long long BinaryReader::ReadLong()
+int64 BinaryReader::ReadLong()
 {
-	long long result = 0;
+	int64 result = 0;
 	if (Offset < Size)
 	{
 		unsigned char * bits = (unsigned char *)Buff.GetData();
@@ -93,12 +93,7 @@ void BinaryReader::Close()
 
 }
 
-int32 BinaryReader::GetOffset()
-{
-	return Offset;
-}
-
-uint32 BinaryReader::GetOffset() const
+int32 BinaryReader::GetOffset() const
 {
 	return Offset;
 }
@@ -118,13 +113,19 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 	int32 length;
 	int32 padding;
 	TArray<uint8> data;
-	unsigned char FirstByte = this->ReadByte();
+	uint8 FirstByte = this->ReadByte();
 	UE_LOG(LogTemp, Warning, TEXT("tgread fisrt byte len %d"), FirstByte)
 	if(FirstByte >= 254)
 	{
-		length = this->ReadByte() + (this->ReadByte() << 8) + (this->ReadByte() << 16);
+		uint8 one = this->ReadByte();
+		uint8 two = this->ReadByte();
+		uint8 three = this->ReadByte();
+		length = one + (two << 8) + (three << 16);
+		//length = this->ReadByte() + (this->ReadByte() << 8) + (this->ReadByte() << 16);
 		padding = length % 4;
-		UE_LOG(LogTemp, Warning, TEXT("tgread bytes len %d"), length);
+// 		UE_LOG(LogTemp, Warning, TEXT("tgread second byte len %d"), one);
+// 		UE_LOG(LogTemp, Warning, TEXT("tgread third byte len %d"), two);
+// 		UE_LOG(LogTemp, Warning, TEXT("tgread fourth byte len %d"), three);
 	}
 	else
 	{

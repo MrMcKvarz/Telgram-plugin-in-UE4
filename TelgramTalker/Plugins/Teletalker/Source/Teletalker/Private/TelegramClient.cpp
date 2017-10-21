@@ -207,5 +207,12 @@ bool TelegramClient::IsUserAuthorized()
 	return bUserAuthorized;
 }
 
+bool TelegramClient::LogOut()
+{
+	AUTH::LogOut LogOutRequest;
+	Invoke(LogOutRequest);
+	ClientSession->Delete();
+	return true; // we don't get response for this
+}
 
 

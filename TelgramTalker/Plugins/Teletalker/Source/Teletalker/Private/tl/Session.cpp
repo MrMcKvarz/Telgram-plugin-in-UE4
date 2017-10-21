@@ -53,7 +53,7 @@ Session::Session(FString SessionUserdID)
 	Salt = 0;
 	GenerateNewSessionID();
 	LastMsgID = 0;
-	SessionFilePath = FString(L"D:\\TeleRealTest\\");
+	SessionFilePath = FPaths::GameDir();
 }
 
 bool Session::Save()
@@ -117,6 +117,13 @@ bool Session::Load()
 
 bool Session::Delete()
 {
+	FString AbsoluteFilePath = SessionFilePath + UserID + ".session";
+
+	if (!FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*AbsoluteFilePath))
+	{
+		UE_LOG(LogTemp, Display, TEXT("Could Not Find File"));
+		return false;
+	}
 	return true;
 }
 

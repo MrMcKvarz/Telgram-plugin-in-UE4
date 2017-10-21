@@ -12,6 +12,7 @@ class TELETALKER_API MTProtoSender : public MTProtoPlainSender
 	TSharedPtr<Exception> ErrorHandler;
 	Session * MTSession;
 	TelegramClient * Client;
+	int32 MessageOffset;
 
 	TArray<uint64> ServerMessagesNeedAcknowledges;
 	TArray<TLBaseObject*> ClientMessagesNeedAcknowledges;

@@ -15,14 +15,14 @@ public:
 	BinaryReader(const unsigned char * Data, int32 Size);
 	~BinaryReader();
 
-	unsigned char ReadByte();
+	uint8 ReadByte();
 	int32 ReadBigInt();
 	/*Reads numbers in little endian*/
 	int32 ReadInt();
-	signed long long ReadLong();
+	int64 ReadLong();
 	TArray<unsigned char> Read(int32 Size);
 	void Close();
-	int32 GetOffset();
+	int32 GetOffset() const;
 	TArray<unsigned char> GetBytes(bool Flush = true);
 	TArray<unsigned char> TGReadBytes();
 	TLBaseObject * TGReadObject();
@@ -32,6 +32,5 @@ public:
 	FDateTime TGReadDate();
 	TBigInt<128> Read128Int();
 	TBigInt<256> Read256Int();
-	uint32 GetOffset() const;
 	void SetOffset(uint32 Value);
 };

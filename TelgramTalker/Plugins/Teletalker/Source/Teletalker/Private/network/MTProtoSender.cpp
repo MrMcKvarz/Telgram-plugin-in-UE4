@@ -118,7 +118,6 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
 	uint32 Response = MessageReader.ReadInt();
 
-	UE_LOG(LogTemp, Warning, TEXT("procces message start"));
 	if (Response == 0xedab447b) // bad server salt
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));	
@@ -176,6 +175,7 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 		UE_LOG(LogTemp, Warning, TEXT("just object"));
 		MessageReader.SetOffset(0);
 		TLBaseObject *Result = MessageReader.TGReadObject();
+		if (Result->GetConstructorID() == 0xe317af7e) Request.SetResponded(true); //Crunch for log out before starting working with updates
 		delete Result;
 		return true;
 	}
