@@ -30,6 +30,7 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 #undef UI
 
+int32 Authenticator::TimeOffset = 0;
 
 int64 GetInt64Big(uint8 * Value)
 {
@@ -224,6 +225,8 @@ AuthKey Authenticator::Authenticate(FString IP, int32 Port)
 	auto DHPrime = DHInnerDataReader.TGReadBytes();
 	auto GA = DHInnerDataReader.TGReadBytes();
 	int32 ServerTime = DHInnerDataReader.ReadInt();
+
+	Authenticator::TimeOffset = ServerTime - std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 	BIGNUM * b = BN_new();
 	uint8 BHash[256];

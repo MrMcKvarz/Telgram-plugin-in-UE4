@@ -9,7 +9,7 @@ class TELETALKER_API MTProtoPlainSender
 protected:
 	int32 Sequence;
 	int32 TimeOffset;
-	int64 LastMessageID;
+	uint64 LastMessageID;
 	TSharedPtr<TCPTransport> Transport;
 public:
 	MTProtoPlainSender(FString IP, int32 Port);
@@ -17,7 +17,10 @@ public:
 	bool Disconnect();
 	int32 Send(unsigned char * Data, int32 Size);
 	TArray<unsigned char> Receive(int32 Size);
-	int64 GetNewMessageID();
+	uint64 GetNewMessageID();
+
+	void SetTimeOffset(uint64 NewTimeOffset) { TimeOffset = NewTimeOffset; }
+	uint64 GetTimeOffset() const { return TimeOffset; }
 
 
 

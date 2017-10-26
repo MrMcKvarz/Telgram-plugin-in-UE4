@@ -10,7 +10,7 @@ int32 Utilities::Decompress(TArray<uint8> CompressedData, TArray<uint8> &Decompr
 	-3 Data Corruption error
 	-5 Decompressed data bad size
 	*/
-	const uint32 ChunkSize = 16948;
+	const uint32 ChunkSize = 30000;
 	uint32 packedLen = CompressedData.Num(), unpackedChunk = packedLen;
 	uint8 Decompressed[ChunkSize];
 	z_stream stream;

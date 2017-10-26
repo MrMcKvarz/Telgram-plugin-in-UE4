@@ -15,8 +15,7 @@
 #include "TelegramClient.h"
 #include "MTError.h"
 /*10/18/2017*/
-#include <fstream>
-#include <string>
+#include <chrono>
 
 MTProtoSender::MTProtoSender(Session &NewSession) : MTProtoPlainSender(NewSession.GetServerAddress(), NewSession.GetPort())
 {
@@ -38,6 +37,7 @@ TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 	if (!Transport.IsValid()) return TArray<uint8>();
 	ErrorHandler = MakeShareable(new Exception(this, &Message));
 	TArray<uint8> Received;
+	MTSession->SetLastSendMessageID(Message.GetRequestMessageID());
 	UE_LOG(LogTemp, Warning, TEXT("Start receive loop"));
 	while(!Message.IsConfirmReceived() || !Message.IsResponded())
 	{
@@ -55,6 +55,7 @@ TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 		UE_LOG(LogTemp, Warning, TEXT("%d bytes decoded"), Decoded.Num());
 		ProcessMessage(Decoded, Message);
 	}
+	
 	return Received;
 }
 
@@ -68,18 +69,21 @@ void MTProtoSender::SendAcknowledges()
 	}
 }
 
-int32 MTProtoSender::SendPacket(TLBaseObject &Message)
+int32 MTProtoSender::SendPacket(TLBaseObject &Message, uint64 PacketMessageID /*= 0*/)
 {
 	BinaryWriter PlainWriter;
 
-	Message.SetRequestMessageID(GetNewMessageID());
+	if (PacketMessageID != 0) 
+		Message.SetRequestMessageID(PacketMessageID);
+	else
+		Message.SetRequestMessageID(GetNewMessageID());
+
 	PlainWriter.WriteLong(MTSession->GetSalt());
 	PlainWriter.WriteLong(MTSession->GetID());
 	PlainWriter.WriteLong(Message.GetRequestMessageID());
 
 	bool ContentRelated = Message.IsContentRelated();
 	PlainWriter.WriteInt(MTSession->GetSequence(ContentRelated));
-
 	BinaryWriter MessageDataWriter;
 	Message.OnSend(MessageDataWriter);
 	uint32 MessageLength = MessageDataWriter.GetWrittenBytesCount();
@@ -114,14 +118,14 @@ int32 MTProtoSender::SendPacket(TLBaseObject &Message)
 
 bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request)
 {
-	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastMsgID());
+	ServerMessagesNeedAcknowledges.Add(MTSession->GetLastReceivedMsgID());
 	BinaryReader MessageReader(Message.GetData(), Message.Num());
 	uint32 Response = MessageReader.ReadInt();
 
 	if (Response == 0xedab447b) // bad server salt
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Bad server salt"));	
-		ServerMessagesNeedAcknowledges.Remove(MTSession->GetLastMsgID());
+		ServerMessagesNeedAcknowledges.Remove(MTSession->GetLastReceivedMsgID());
 		return HandleBadServerSalt(Message, Request);
 	}
 	if (Response == 0xf35c6d01)  // rpc_result, (response of an RPC call, i.e., we sent a request)
@@ -130,7 +134,10 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 		return HandleRPCResult(Message, Request);
 	}
 	if (Response == 0x347773c5)  // pong
+	{
 		UE_LOG(LogTemp, Warning, TEXT("pong"));
+		return HandlePong(Message, Request);
+	}
 
 	if (Response == 0x73f1f8dc)  // msg_container
 	{
@@ -155,8 +162,8 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 		UE_LOG(LogTemp, Warning, TEXT("msg ack"));
 		MessageReader.SetOffset(0);
 		TLBaseObject * Ack = MessageReader.TGReadObject();
-		if (Ack == nullptr) return false;
-		else
+		if (!Ack) return false;
+		//else
 		{
 			COMMON::MsgsAck* MessageAck = reinterpret_cast<COMMON::MsgsAck*>(Ack);
 			for (TLBaseObject * ConfirmMessage : ClientMessagesNeedAcknowledges)
@@ -172,7 +179,7 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 
 	if (TLObjects().Contains(Response))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("just object"));
+		UE_LOG(LogTemp, Warning, TEXT("tlobject in response"));
 		MessageReader.SetOffset(0);
 		TLBaseObject *Result = MessageReader.TGReadObject();
 		if (Result->GetConstructorID() == 0xe317af7e) Request.SetResponded(true); //Crunch for log out before starting working with updates
@@ -209,8 +216,8 @@ TArray<uint8 > MTProtoSender::DecodeMessage(TArray<uint8> Message)
 	BinaryReader PlainReader(PlainText, PlainMessageLength);
 	unsigned long long BadSalt = PlainReader.ReadLong(); // remote salt
 	unsigned long long RemoteSeesionID = PlainReader.ReadLong(); // remote session id
-	unsigned long long RemoteMessageID = PlainReader.ReadLong();
-	MTSession->SetLastMsgID(RemoteMessageID);
+	RemoteMessageID = PlainReader.ReadLong();
+	MTSession->SetLastReceivedMessageID(RemoteMessageID);
 	uint32 RemoteSequence = PlainReader.ReadInt();
 	uint32 MessageLength = PlainReader.ReadInt();
 	auto RemoteMessage = PlainReader.Read(MessageLength);
@@ -257,21 +264,33 @@ bool MTProtoSender::HandleMessageContainer(TArray<uint8> Message, TLBaseObject &
 bool MTProtoSender::HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &Request)
 {
 	BinaryReader Reader(Message.GetData(), Message.Num());
-	uint32 Code = Reader.ReadInt();
-	uint64 RequestID = Reader.ReadLong();
-	Reader.ReadInt();
-	uint32 ErrorCode = Reader.ReadInt();
+
+	COMMON::BadMsgNotification * BadBessageResponse = reinterpret_cast<COMMON::BadMsgNotification *>(Reader.TGReadObject());
+	//BadBessageResponse->
+	if (!BadBessageResponse) return false;
+	int32 ErrorCode = BadBessageResponse->GetErrorCode();
 #pragma region Errors
 	switch (ErrorCode)
 	{
 	case 16:
 	{
 		UE_LOG(LogTemp, Error, TEXT("msg_id too low (most likely, client time is wrong it would be worthwhile to synchronize it using msg_id notifications and re-send the original message with the correct msg_id or wrap it in a container with a new msg_id if the original message had waited too long on the client to be transmitted)."));
+		int64 ServerTime = (RemoteMessageID >> 32);
+		uint64 LocalTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		int64 Differ = ServerTime - LocalTime;
+		TimeOffset = Differ;
+		SendPacket(Request);
 		break;
 	}
 	case 17:
 	{
 		UE_LOG(LogTemp, Error, TEXT("msg_id too high (similar to the previous case, the client time has to be synchronized, and the message re-sent with the correct msg_id)."));
+		int64 ServerTime = (RemoteMessageID >> 32);
+		uint64 LocalTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		int64 Differ = ServerTime - LocalTime;
+		TimeOffset = Differ;
+
+		SendPacket(Request);
 		break;
 	}
 	case 18:

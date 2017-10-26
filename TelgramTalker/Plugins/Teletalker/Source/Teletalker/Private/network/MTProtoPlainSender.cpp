@@ -56,21 +56,23 @@ TArray<unsigned char> MTProtoPlainSender::Receive(int32 Size)
 	return Response;
 }
 
-int64 MTProtoPlainSender::GetNewMessageID()
+uint64 MTProtoPlainSender::GetNewMessageID()
 {
 	auto nano = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
 	auto sec = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch());
 
-	UE_LOG(LogTemp, Warning, TEXT("Seconds: %d"), sec.count());
-	UE_LOG(LogTemp, Warning, TEXT("Nano seconds: %d"), nano.count());
+	int64 seconds = sec.count() + TimeOffset;
+	int64 nanosec = nano.count() + TimeOffset * 1e+9;
 
-	double nanoseconds = nano.count() - (sec.count() * 1e+9);
-	int64 new_msg_id = ((sec.count() << 32) | int32(nanoseconds * 2));
+	double nanoseconds = nanosec - (seconds * 1e+9);
 
-	if (LastMessageID >= new_msg_id)
-		new_msg_id = LastMessageID + 4;
-	LastMessageID = new_msg_id;
+	uint64 new_msg_id = ((seconds) << 32) | int32(nanoseconds * 2);
 
+// 	if (LastMessageID >= new_msg_id)
+// 		new_msg_id = LastMessageID + 4;
+// 	LastMessageID = new_msg_id;
+
+	UE_LOG(LogTemp, Warning, TEXT("New message ID: %d"), new_msg_id);
 	return new_msg_id;
 
 }

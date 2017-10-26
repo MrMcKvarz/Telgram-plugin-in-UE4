@@ -20,6 +20,11 @@ public:
 	virtual void OnResponce(BinaryReader& Reader) {}
 	TLBaseObject * GetResult() { return this; }
 
+	bool IsValid()
+	{
+		return _ConstructorID == 0;
+	}
+
 	virtual ~TLBaseObject();
 
 protected:

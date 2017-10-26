@@ -39,7 +39,7 @@ FString GetOSVersion()
 
 Session::Session(FString SessionUserdID)
 {
-	UserID = SessionUserdID;
+	UserName = SessionUserdID;
 	DeviceModel = GetOSName();
 	SystemVersion = GetOSVersion();
 	AppVersion = "1.0";
@@ -52,7 +52,7 @@ Session::Session(FString SessionUserdID)
 	Sequence = 0;
 	Salt = 0;
 	GenerateNewSessionID();
-	LastMsgID = 0;
+	LastReceivedMsgID = 0;
 	SessionFilePath = FPaths::GameDir();
 }
 
@@ -75,7 +75,7 @@ bool Session::Save()
 
 	FString FileName;
 	FileName += SessionFilePath;
-	FileName += UserID;
+	FileName += UserName;
 	FileName += ".session";
 
 	FString OutputString;
@@ -89,7 +89,7 @@ bool Session::Load()
 {
 
 	FString JsonString;
-	FString FilePath = SessionFilePath + UserID + ".session";
+	FString FilePath = SessionFilePath + UserName + ".session";
 	if(!FFileHelper::LoadFileToString(JsonString, FilePath.GetCharArray().GetData())) return false;
 
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
@@ -117,7 +117,7 @@ bool Session::Load()
 
 bool Session::Delete()
 {
-	FString AbsoluteFilePath = SessionFilePath + UserID + ".session";
+	FString AbsoluteFilePath = SessionFilePath + UserName + ".session";
 
 	if (!FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*AbsoluteFilePath))
 	{

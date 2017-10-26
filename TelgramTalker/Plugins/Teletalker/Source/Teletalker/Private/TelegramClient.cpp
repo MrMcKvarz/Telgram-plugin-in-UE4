@@ -33,6 +33,11 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 
 TelegramClient::~TelegramClient()
 {
+	for (auto chat : Chats)
+		if (chat) delete chat;
+
+	for (auto user : Users)
+		if (user) delete user;
 }
 
 bool TelegramClient::Connect()
@@ -49,7 +54,7 @@ bool TelegramClient::Connect()
 	if(!ClientSession->Load() || ClientSession->GetAuthKey().GetKeyID() == 0)
 	{
 		GenerateNewAuthKey();
-		bAuthanticated = true;
+
 		if (ClientSession->Save())
 			UE_LOG(LogTemp, Warning, TEXT("Session saved"));
 	}
@@ -64,7 +69,8 @@ bool TelegramClient::Connect()
 	UE_LOG(LogTemp, Warning, TEXT("Invoked"));
 	COMMON::Config* ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest.GetResult());
 	UE_LOG(LogTemp, Warning, TEXT("casted"));
-	ClientSession->DCOptions = ConfigResult->GetDcOptions();
+	for (auto DCOption : ConfigResult->GetDcOptions())
+		ClientSession->DCOptions.Add(*DCOption);
 
 	UE_LOG(LogTemp, Warning, TEXT("Telegram Client connect"));
 	return true;
@@ -72,8 +78,10 @@ bool TelegramClient::Connect()
 
 void TelegramClient::GenerateNewAuthKey()
 {
+
 	AuthKey AuthKeyData = Authenticator::Authenticate(ClientSession->GetServerAddress(), ClientSession->GetPort());
 	ClientSession->SetAuthKey(AuthKeyData);
+	Sender->SetTimeOffset(Authenticator::TimeOffset);
 	bAuthanticated = true;
 	return;
 }
@@ -193,8 +201,8 @@ bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
 bool TelegramClient::IsUserAuthorized()
 {
 	if (!Sender->IsConnected()) return false;
-	COMMON::InputUserSelf InputUser;
-	TArray<TLBaseObject*> UserVector;
+	COMMON::InputUser InputUser;
+	TArray<COMMON::InputUser*> UserVector;
 	UserVector.Add(&InputUser);
 	USERS::GetUsers IsAuthorizedRequest(UserVector);
 	bUserAuthorized = true;

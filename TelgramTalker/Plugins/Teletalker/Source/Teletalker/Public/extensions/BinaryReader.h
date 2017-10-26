@@ -18,6 +18,7 @@ public:
 	uint8 ReadByte();
 	int32 ReadBigInt();
 	/*Reads numbers in little endian*/
+
 	int32 ReadInt();
 	int64 ReadLong();
 	TArray<unsigned char> Read(int32 Size);
@@ -25,7 +26,7 @@ public:
 	int32 GetOffset() const;
 	TArray<unsigned char> GetBytes(bool Flush = true);
 	TArray<unsigned char> TGReadBytes();
-	TLBaseObject * TGReadObject();
+	TLBaseObject *  TGReadObject();
 	FString TGReadString();
 	bool ReadBool();
 	double ReadDouble();

@@ -56,12 +56,12 @@ bool Exception::HandeMigrate(FString ErrorMessage)
 	}
 	Session * MTSession = Sender->GetSession();
 	if (!MTSession || !Request) return false;
-	for (COMMON::DcOption* DC : MTSession->DCOptions)
-		if (DC->Getid() == DataCenterToMigrate && !DC->Getipv6())
+	for (auto DC : MTSession->DCOptions)
+		if (DC.Getid() == DataCenterToMigrate && !DC.Getipv6())
 		{
-			MTSession->SetServerAddress(DC->GetIpAddress());
+			MTSession->SetServerAddress(DC.GetIpAddress());
 			MTSession->GetAuthKey().ClearAuthKey();
-			MTSession->SetPort(DC->Getport());
+			MTSession->SetPort(DC.Getport());
 			MTSession->Save();
 			Sender->GetClient()->Reconnect();
 			Sender->Send(*Request);

@@ -11,7 +11,8 @@ class TELETALKER_API Session
 	uint64 ID;
 	int32 Sequence;
 	uint64 Salt;
-	int64 LastMsgID;
+	int64 LastReceivedMsgID;
+	int64 LastSendMsgID;
 	
 	FString DeviceModel;
 	FString SystemVersion;
@@ -20,17 +21,20 @@ class TELETALKER_API Session
 	FString SystemLangCode;
 	FString LangPack;
 
-	FString UserID;
+	FString UserName;
 	FString SessionFilePath;
 
+
 public:
+	int32 TimeOffset;
+
 	Session(FString SessionUserdID);
 	bool Save();
 	bool Load();
 	bool Delete();
 	
 	//TArray<TSharedPtr<COMMON::DcOption>> DCOptions;
-	TArray<COMMON::DcOption *> DCOptions;
+	TArray<COMMON::DcOption> DCOptions;
 
 	void GenerateNewSessionID();
 
@@ -59,8 +63,11 @@ public:
 	}
 	void SetSequence(int32 NewSequence) { if (NewSequence > 0) Sequence = NewSequence; }
 
-	int64 GetLastMsgID() { return LastMsgID; }
-	void SetLastMsgID(int64 NewLastMsgID) { LastMsgID = NewLastMsgID; }
+	int64 GetLastReceivedMsgID() { return LastReceivedMsgID; }
+	void SetLastReceivedMessageID(int64 NewLastMsgID) { LastReceivedMsgID = NewLastMsgID; }
+
+	int64 GetLastSendMsgID() { return LastSendMsgID; }
+	void SetLastSendMessageID(int64 NewLastMsgID) { LastSendMsgID = NewLastMsgID; }
 
 	unsigned long long GetSalt() { return Salt; }
 	void SetSalt(unsigned long long NewSalt) { if (NewSalt > 0) Salt = NewSalt; }
@@ -83,6 +90,6 @@ public:
 	FString GetLangPack() { return LangPack; }
 	void SetLangPack(FString NewLangPack) { LangPack = NewLangPack; }
 
-	FString GetUserID() { return UserID; }
-	void SetUserID(FString NewUserID) { UserID = NewUserID; }
+	FString GetUserID() { return UserName; }
+	void SetUserID(FString NewUserID) { UserName = NewUserID; }
 };
