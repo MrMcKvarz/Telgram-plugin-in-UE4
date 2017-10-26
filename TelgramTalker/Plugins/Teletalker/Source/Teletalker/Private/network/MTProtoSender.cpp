@@ -177,7 +177,7 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 		return true;
 	}
 
-	if (TLObjects().Contains(Response))
+	if (TLObjects(Response))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("tlobject in response"));
 		MessageReader.SetOffset(0);

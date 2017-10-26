@@ -60,19 +60,20 @@ bool TelegramClient::Connect()
 	}
 	Sender->UpdateTransport(ClientSession.Get());
 	if (!Sender->IsConnected()) Sender->Connect();
-	HELP::GetConfig ConfigRequest;
+	HELP::GetConfig * ConfigRequest = new HELP::GetConfig();
 
-	COMMON::InitConnection InitRequest(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
-		ClientSession->GetLangPack(), ClientSession->GetLangCode(), &ConfigRequest);
-	COMMON::InvokeWithLayer InvokeWithLayerRequest(71, &InitRequest);
-	Invoke(InvokeWithLayerRequest);
-	UE_LOG(LogTemp, Warning, TEXT("Invoked"));
-	COMMON::Config* ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest.GetResult());
-	UE_LOG(LogTemp, Warning, TEXT("casted"));
+	COMMON::InitConnection * InitRequest = new COMMON::InitConnection(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
+		ClientSession->GetLangPack(), ClientSession->GetLangCode(), ConfigRequest);
+	COMMON::InvokeWithLayer * InvokeWithLayerRequest = new COMMON::InvokeWithLayer(CurrentLayer(), InitRequest);
+	Invoke(*InvokeWithLayerRequest);
+
+	COMMON::Config* ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest->GetResult());
+
 	for (auto DCOption : ConfigResult->GetDcOptions())
 		ClientSession->DCOptions.Add(*DCOption);
 
 	UE_LOG(LogTemp, Warning, TEXT("Telegram Client connect"));
+	delete InvokeWithLayerRequest;
 	return true;
 }
 
@@ -201,17 +202,19 @@ bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
 bool TelegramClient::IsUserAuthorized()
 {
 	if (!Sender->IsConnected()) return false;
-	COMMON::InputUser InputUser;
+	COMMON::InputUser *  InputUser = new COMMON::InputUser();
 	TArray<COMMON::InputUser*> UserVector;
-	UserVector.Add(&InputUser);
-	USERS::GetUsers IsAuthorizedRequest(UserVector);
+	UserVector.Add(InputUser);
+	USERS::GetUsers * IsAuthorizedRequest = new USERS::GetUsers(UserVector);
 	bUserAuthorized = true;
 
-	Invoke(IsAuthorizedRequest);
+	Invoke(*IsAuthorizedRequest);
 
-	if (IsAuthorizedRequest.GetLastErrorMessage() == L"AUTH_KEY_UNREGISTERED")
+	if (IsAuthorizedRequest->GetLastErrorMessage() == L"AUTH_KEY_UNREGISTERED")
 		bUserAuthorized = false;
 
+	//delete InputUser;
+	delete IsAuthorizedRequest;
 	return bUserAuthorized;
 }
 
