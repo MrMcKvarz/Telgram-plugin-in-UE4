@@ -16,7 +16,7 @@ class TELETALKER_API MTProtoSender : public MTProtoPlainSender
 
 	TArray<uint64> ServerMessagesNeedAcknowledges;
 	TArray<TLBaseObject*> ClientMessagesNeedAcknowledges;
-	uint64 RemoteMessageID;
+	uint64 RemoteMessageID; // Last received message ID, needed to know correct DC time
 public:
 	MTProtoSender(Session &NewSession);
 	int32 Send(TLBaseObject &Message); // TLObject

@@ -25,8 +25,8 @@ class TELETALKER_API TelegramClient
 	FString PhoneHashCode;
 	FString PhoneNumber;
 
-	TArray<COMMON::User*> Users;
-	TArray<COMMON::Chat *> Chats;
+	TArray<COMMON::User> Users;
+	TArray<COMMON::Chat> Chats;
 public:
 	bool bUserAuthorized; // presentation only
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
@@ -34,13 +34,16 @@ public:
 	bool Connect();
 	bool SendCode(FString PhoneNumber);
 	bool Invoke(TLBaseObject &Request);
-	void Reconnect();
+	bool Reconnect();
 	TArray<FString> GetDialogSlice(int32 SliceNumber);
 	bool SingIn(FString Code);
 	
 	bool SendMessage(FString UserSendTo, FString Message);
 	bool IsUserAuthorized();
 	bool LogOut();
+
+	/*We stay on the same DC but creating new session*/
+	bool CreateNewSession();
 protected:
 	void GenerateNewAuthKey();
 };

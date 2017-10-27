@@ -274,7 +274,7 @@ bool MTProtoSender::HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &
 	{
 	case 16:
 	{
-		UE_LOG(LogTemp, Error, TEXT("msg_id too low (most likely, client time is wrong it would be worthwhile to synchronize it using msg_id notifications and re-send the original message with the correct msg_id or wrap it in a container with a new msg_id if the original message had waited too long on the client to be transmitted)."));
+		UE_LOG(LogTemp, Error, TEXT("msg_id too low"));
 		int64 ServerTime = (RemoteMessageID >> 32);
 		uint64 LocalTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		int64 Differ = ServerTime - LocalTime;
@@ -284,7 +284,7 @@ bool MTProtoSender::HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &
 	}
 	case 17:
 	{
-		UE_LOG(LogTemp, Error, TEXT("msg_id too high (similar to the previous case, the client time has to be synchronized, and the message re-sent with the correct msg_id)."));
+		UE_LOG(LogTemp, Error, TEXT("msg_id too high"));
 		int64 ServerTime = (RemoteMessageID >> 32);
 		uint64 LocalTime = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		int64 Differ = ServerTime - LocalTime;
@@ -295,50 +295,50 @@ bool MTProtoSender::HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &
 	}
 	case 18:
 	{
-		UE_LOG(LogTemp, Error, TEXT("Incorrect two lower order msg_id bits (the server expects client message msg_id to be divisible by 4)."));
+		ErrorHandler->HandleException(L"Incorrect two lower order msg_id bits (the server expects client message msg_id to be divisible by 4).", 18);
 		break;
 	}
 	case 19:
 	{
-		UE_LOG(LogTemp, Error, TEXT("Container msg_id is the same as msg_id of a previously received message (this must never happen)."));
+		ErrorHandler->HandleException(L"Container msg_id is the same as msg_id of a previously received message.", 19);
 		break;
 	}
 	case 20:
 	{
-		UE_LOG(LogTemp, Error, TEXT("Message too old, and it cannot be verified whether the server has received a message with this msg_id or not."));
+		ErrorHandler->HandleException(L"Message too old, and it cannot be verified whether the server has received a message with this msg_id or not.", 20);
 		break;
 	}
 	case 32:
 	{
 		UE_LOG(LogTemp, Error, TEXT("msg_seqno too low (the server has already received a message with a lower 'msg_id but with either a higher or an equal and odd seqno)."));
+		Client->Reconnect();
+		Send(Request);
 		break;
 	}
 	case 33:
 	{
-		UE_LOG(LogTemp, Error, TEXT("msg_seqno too high (similarly, there is a message with a higher msg_id but with either a lower or an equal and odd seqno)."));
+		UE_LOG(LogTemp, Error, TEXT("msg_seqno too high (there is a message with a higher msg_id but with either a lower or an equal and odd seqno)."));
+		Client->Reconnect();
+		Send(Request);
 		break;
 	}
 	case 34:
 	{
-		UE_LOG(LogTemp, Error, TEXT("An even msg_seqno expected (irrelevant message), but odd received."));
+		ErrorHandler->HandleException(L"An even msg_seqno expected (irrelevant message), but odd received.", 34);
 		break;
 	}
 	case 35: 	
 	{
-		UE_LOG(LogTemp, Error, TEXT("Odd msg_seqno expected (relevant message), but even received."));
-		break;
-	}
-	case 48:
-	{
-		UE_LOG(LogTemp, Error, TEXT("Incorrect server salt (in this case, the bad_server_salt response is received with the correct salt, and the message is to be re-sent with it)."));
+		ErrorHandler->HandleException(L"Odd msg_seqno expected (relevant message), but even received.", 35);
 		break;
 	}
 	case 64: 	
 	{
-		UE_LOG(LogTemp, Error, TEXT("Invalid container."));
+		ErrorHandler->HandleException(L"Invalid container.", 18);
 		break;
 	}
 	default:
+		ErrorHandler->HandleException(L"Unknown error.", -1);
 		break;
 	}
 #pragma endregion
@@ -372,12 +372,6 @@ bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request
 		SendAcknowledges();
 		Request.SetDirty(true);
 		Request.SetResponded(true);
-// 		std::string text = std::string(TCHAR_TO_UTF8(*Error));
-// 		std::ofstream file;
-// 		FString Path = (FString(R"(D:\TeleRealTest)") + "log.txt");
-// 		file.open(*Path, std::ios_base::app);
-// 		file << text << "\n";
-// 		file.close();
 		ErrorHandler->HandleException(Error, ErrorCode);
 			
 		return false;

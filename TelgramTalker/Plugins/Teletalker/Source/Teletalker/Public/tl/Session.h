@@ -24,6 +24,7 @@ class TELETALKER_API Session
 	FString UserName;
 	FString SessionFilePath;
 
+	int32 CurrentDC;
 
 public:
 	int32 TimeOffset;
@@ -48,6 +49,9 @@ public:
 	int32 GetPort() { return Port; }
 	void SetPort(int32 NewPort) { if (NewPort > 0) Port = NewPort; }
 
+	int32 GetCurrentDC() { return CurrentDC; }
+	void SetCurrentDC(int32 NewCurrentDC) { if (NewCurrentDC > 0) CurrentDC = NewCurrentDC; }
+
 	unsigned long long GetID() { return ID; }
 	void SetID(unsigned long long NewID) { if (NewID > 0) ID = NewID; }
 
@@ -61,7 +65,7 @@ public:
 		}
 		return Sequence * 2; 
 	}
-	void SetSequence(int32 NewSequence) { if (NewSequence > 0) Sequence = NewSequence; }
+	void SetSequence(int32 NewSequence) { if (NewSequence >= 0) Sequence = NewSequence; }
 
 	int64 GetLastReceivedMsgID() { return LastReceivedMsgID; }
 	void SetLastReceivedMessageID(int64 NewLastMsgID) { LastReceivedMsgID = NewLastMsgID; }

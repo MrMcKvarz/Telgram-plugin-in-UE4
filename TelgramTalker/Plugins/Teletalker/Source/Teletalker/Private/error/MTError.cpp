@@ -38,10 +38,29 @@ bool Exception::HandleException(FString NewError, int32 NewErrorCode)
 	return true;
 }
 
+bool Exception::Reconnect(int32 DataCenterToMigrate)
+{
+	Session * MTSession = Sender->GetSession();
+	if (!MTSession || !Request) return false;
+	for (auto DC : MTSession->DCOptions)
+		if (DC.Getid() == DataCenterToMigrate && !DC.Getipv6())
+		{
+			MTSession->SetServerAddress(DC.GetIpAddress());
+			MTSession->GetAuthKey().ClearAuthKey();
+			MTSession->SetPort(DC.Getport());
+			MTSession->SetCurrentDC(DataCenterToMigrate);
+			MTSession->Save();
+			Sender->GetClient()->Reconnect();
+			return true;
+		}
+	return false;
+}
+
 void Exception::CreateException(FString NewError, int32 NewErrorCode)
 {
 	Error = NewError;
 	ErrorCode = NewErrorCode;
+	UE_LOG(LogTemp, Error, TEXT("Code: %d, Error: %s"), ErrorCode, *Error);
 }
 
 bool Exception::HandeMigrate(FString ErrorMessage)
@@ -51,22 +70,12 @@ bool Exception::HandeMigrate(FString ErrorMessage)
 	int32 DataCenterToMigrate = -1;
 	if (Match.FindNext())
 	{
-		FString asd = Match.GetCaptureGroup(1);
-		DataCenterToMigrate = FCString::Atoi(*asd);
+		FString DC_ID = Match.GetCaptureGroup(1);
+		DataCenterToMigrate = FCString::Atoi(*DC_ID);
 	}
-	Session * MTSession = Sender->GetSession();
-	if (!MTSession || !Request) return false;
-	for (auto DC : MTSession->DCOptions)
-		if (DC.Getid() == DataCenterToMigrate && !DC.Getipv6())
-		{
-			MTSession->SetServerAddress(DC.GetIpAddress());
-			MTSession->GetAuthKey().ClearAuthKey();
-			MTSession->SetPort(DC.Getport());
-			MTSession->Save();
-			Sender->GetClient()->Reconnect();
-			Sender->Send(*Request);
-			break;
-		}
+	if (Reconnect(DataCenterToMigrate))
+		Sender->Send(*Request);
+
 	return true;
 }
 

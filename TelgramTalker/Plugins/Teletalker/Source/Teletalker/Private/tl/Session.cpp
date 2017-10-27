@@ -48,12 +48,15 @@ Session::Session(FString SessionUserdID)
 	LangPack = "";
 
 	ServerAddress = "149.154.167.51";//"149.154.167.51"; /*This is address of some data center of Telegram*/
+	CurrentDC = 2; //this DC ID
+
 	Port = 443;
 	Sequence = 0;
 	Salt = 0;
 	GenerateNewSessionID();
 	LastReceivedMsgID = 0;
 	SessionFilePath = FPaths::GameDir();
+
 }
 
 bool Session::Save()

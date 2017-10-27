@@ -48,5 +48,6 @@ public:
 	Exception(MTProtoSender * NewSender, TLBaseObject * Request);
 
 	bool HandleException(FString NewError, int32 NewErrorCode);
+	bool Reconnect(int32 DC);
 
 };

@@ -33,11 +33,7 @@ TelegramClient::TelegramClient(FString SessionName, int32 API_id, FString API_ha
 
 TelegramClient::~TelegramClient()
 {
-	for (auto chat : Chats)
-		if (chat) delete chat;
 
-	for (auto user : Users)
-		if (user) delete user;
 }
 
 bool TelegramClient::Connect()
@@ -110,15 +106,10 @@ bool TelegramClient::Invoke(TLBaseObject &Request)
 	return true;
 }
 
-void TelegramClient::Reconnect()
+bool TelegramClient::Reconnect()
 {
-	ClientSession->GenerateNewSessionID(); //effectively creating new session 
-	ClientSession->Save();
-	bAuthanticated = false;
-	bool disc = Sender->Disconnect();
-	Sender->UpdateTransport(ClientSession.Get());
 	GenerateNewAuthKey();
-	Connect();
+	return CreateNewSession();
 }
 
 TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
@@ -133,11 +124,23 @@ TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
 		for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
 		{
 			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
-			Users = GetDialogResult->Getusers();
+			//Save all users
+			for (COMMON::User * User : GetDialogResult->Getusers())
+			{
+				if (User)
+					Users.Add(*User);
+			}
+			//Get all users names
 			for (COMMON::User * user : GetDialogResult->Getusers())
 				if (user->Getid() == Title->GetUserId())
 					DialogsNames.Add(user->GetFirstName());
-			Chats = GetDialogResult->Getchats();
+			//Save all chats
+			for (COMMON::Chat * Chat : GetDialogResult->Getchats())
+			{
+				if (Chat->GetConstructorID() == -652419756)
+					Chats.Add(*Chat);
+			}
+			//Get all chats names
 			for (COMMON::Chat * chat : GetDialogResult->Getchats())
 				if (chat->Getid() == Title->GetUserId())
 					DialogsNames.Add(chat->Gettitle());
@@ -149,17 +152,24 @@ TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
 		for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
 		{
 			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
-			Users = GetDialogResult->Getusers();
+			for (COMMON::User *  User : GetDialogResult->Getusers())
+			{
+				if (User)
+					Users.Add(*User);
+			}
 			for (COMMON::User * user : GetDialogResult->Getusers())
 				if (user->Getid() == Title->GetUserId())
 					DialogsNames.Add(user->GetFirstName());
-			Chats = GetDialogResult->Getchats();
+			for (COMMON::Chat * Chat : GetDialogResult->Getchats())
+			{
+				if (Chat->GetConstructorID() == -652419756)
+					Chats.Add(*Chat);
+			}
 			for (COMMON::Chat * chat : GetDialogResult->Getchats())
 				if (chat->Getid() == Title->GetUserId())
 					DialogsNames.Add(chat->Gettitle());
 		}
 	}
-
 	return DialogsNames;
 }
 
@@ -173,11 +183,10 @@ bool TelegramClient::SingIn(FString Code)
 bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
 {
 	if (!IsUserAuthorized()) return false;
-	COMMON::User * User = nullptr;
-	for (COMMON::User * user : Users)
-		if (user->GetFirstName() == UserSendTo)
+	COMMON::User User;
+	for (COMMON::User user : Users)
+		if (user.GetFirstName() == UserSendTo)
 			User = user;
-	if (!User) return false;
 
 	bool Result = false;
 	if(!Message.IsEmpty())
@@ -187,7 +196,7 @@ bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
 			false, 
 			false, 
 			false, 
-			new COMMON::InputPeerUser(User->Getid(), User->GetAccessHash()),
+			new COMMON::InputPeerUser(User.Getid(), User.GetAccessHash()),
 			0, 
 			Message, 
 			Crypto::GetRandomLong(), 
@@ -226,4 +235,14 @@ bool TelegramClient::LogOut()
 	return true; // we don't get response for this
 }
 
+bool TelegramClient::CreateNewSession()
+{
+	ClientSession->GenerateNewSessionID(); //effectively creating new session 
+	ClientSession->Save();
+	bool IsDisconnected = Sender->Disconnect();
+	bool IsUpdated = Sender->UpdateTransport(ClientSession.Get());
+	bool IsConected = Connect();
+	ClientSession->SetSequence(0);
+	return IsDisconnected && IsUpdated && IsConected;
+}
 
