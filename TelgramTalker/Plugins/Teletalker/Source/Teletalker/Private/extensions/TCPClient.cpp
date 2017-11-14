@@ -1,6 +1,7 @@
 #include "extensions/TCPClient.h"
 #include "SharedPointer.h"
-
+#include <thread>
+#include <chrono>
 TCPClient::TCPClient()
 {
 	Connected = false;
@@ -21,7 +22,7 @@ bool TCPClient::Connect(FIPv4Address IP, int32 Port, int32 Timeout /*= 5*/)
 	auto Address = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 	Address->SetIp(IP.Value);
 	Address->SetPort(Port);
-
+	//Socket->SetNonBlocking(true);
  	Connected = Socket->Connect(*Address);
 	return Connected;
 }
@@ -36,6 +37,7 @@ bool TCPClient::Close()
 
 int32 TCPClient::Write(unsigned char * Data, int32 Size)
 {
+	if (Socket->GetConnectionState() == ESocketConnectionState::SCS_NotConnected) return 0;
 	if (Size < 0 || Data == nullptr) return false;
 	bool IsSent = Socket->Send((uint8*)Data, Size, BytesSent);
 	if(IsSent)
@@ -45,10 +47,12 @@ int32 TCPClient::Write(unsigned char * Data, int32 Size)
 
 TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 {
+	if (Socket->GetConnectionState() == ESocketConnectionState::SCS_NotConnected) return TArray<unsigned char>();
 	int32 BytesToReceive = Size;
 	uint8 * Data = new uint8[Size];
 	TArray<unsigned char> Temp;
 	Temp.Reserve(Size);
+	//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	do
 	{
 		int32 BytesRead = -1;
@@ -62,7 +66,7 @@ TArray<unsigned char> TCPClient::Read(int32 Size, int32 Timeout /*= 5*/)
 		}
 		BytesToReceive -= BytesRead;
 	} while (BytesToReceive != 0);
-	delete Data;
+	delete[] Data;
 	return Temp;
 }
 

@@ -882,8 +882,10 @@
 #include "Functions/LANGPACK/Public/GetDifference.h"
 #include "Functions/LANGPACK/Public/GetLanguages.h"
 
-
-TLBaseObject* TLObjects(uint32 ConstructorID)
+class TELETALKER_API AllObjects
+{
+public:
+static TLBaseObject* TLObjects(uint32 ConstructorID)
 {
 	switch(ConstructorID)
 	{
@@ -5296,7 +5298,10 @@ TLBaseObject* TLObjects(uint32 ConstructorID)
 			return nullptr; 
 	}
 }
-int32 CurrentLayer()
+
+static int32 CurrentLayer()
 {
 	return 72;
 }
+
+};

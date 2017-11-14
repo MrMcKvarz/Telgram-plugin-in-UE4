@@ -6,13 +6,13 @@
 //#include "../../TL/Types/COMMON/Public/DcOption.h"
 
 
-Exception::Exception(MTProtoSender * NewSender, TLBaseObject * NewRequest)
+MTError::MTError(MTProtoSender * NewSender, TLBaseObject * NewRequest)
 {
 	Sender = NewSender;
 	Request = NewRequest;
 }
 
-bool Exception::HandleException(FString NewError, int32 NewErrorCode)
+bool MTError::HandleException(FString NewError, int32 NewErrorCode)
 {
 	CreateException(NewError, NewErrorCode);
 	switch (ErrorCode)
@@ -38,16 +38,16 @@ bool Exception::HandleException(FString NewError, int32 NewErrorCode)
 	return true;
 }
 
-bool Exception::Reconnect(int32 DataCenterToMigrate)
+bool MTError::Reconnect(int32 DataCenterToMigrate)
 {
 	Session * MTSession = Sender->GetSession();
 	if (!MTSession || !Request) return false;
 	for (auto DC : MTSession->DCOptions)
-		if (DC.Getid() == DataCenterToMigrate && !DC.Getipv6())
+		if (DC.GetId() == DataCenterToMigrate && !DC.GetIpv6())
 		{
 			MTSession->SetServerAddress(DC.GetIpAddress());
 			MTSession->GetAuthKey().ClearAuthKey();
-			MTSession->SetPort(DC.Getport());
+			MTSession->SetPort(DC.GetPort());
 			MTSession->SetCurrentDC(DataCenterToMigrate);
 			MTSession->Save();
 			Sender->GetClient()->Reconnect();
@@ -56,14 +56,14 @@ bool Exception::Reconnect(int32 DataCenterToMigrate)
 	return false;
 }
 
-void Exception::CreateException(FString NewError, int32 NewErrorCode)
+void MTError::CreateException(FString NewError, int32 NewErrorCode)
 {
 	Error = NewError;
 	ErrorCode = NewErrorCode;
 	UE_LOG(LogTemp, Error, TEXT("Code: %d, Error: %s"), ErrorCode, *Error);
 }
 
-bool Exception::HandeMigrate(FString ErrorMessage)
+bool MTError::HandeMigrate(FString ErrorMessage)
 {
 	FRegexPattern Pattern(TEXT("(\\d+)"));
 	FRegexMatcher Match(Pattern, ErrorMessage);
@@ -79,10 +79,11 @@ bool Exception::HandeMigrate(FString ErrorMessage)
 	return true;
 }
 
-bool Exception::NotifyRequest()
+bool MTError::NotifyRequest()
 {
 	if (!Request) return false;
 	Request->SetLastErrorMessage(Error);
+	Request->SetLastErrorCode(ErrorCode);
 	return true;
 }
 

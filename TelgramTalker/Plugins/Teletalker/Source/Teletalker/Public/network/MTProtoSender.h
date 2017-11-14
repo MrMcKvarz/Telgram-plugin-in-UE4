@@ -1,7 +1,7 @@
 #pragma once 
 #include "MTProtoPlainSender.h"
 
-class Exception;
+class MTError;
 class Session;
 class TCPTransport;
 class TLBaseObject;
@@ -9,7 +9,7 @@ class TelegramClient;
 
 class TELETALKER_API MTProtoSender : public MTProtoPlainSender
 {
-	TSharedPtr<Exception> ErrorHandler;
+	TSharedPtr<MTError> ErrorHandler;
 	Session * MTSession;
 	TelegramClient * Client;
 	int32 MessageOffset;

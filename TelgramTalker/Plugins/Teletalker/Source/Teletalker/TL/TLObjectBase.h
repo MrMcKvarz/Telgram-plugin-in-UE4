@@ -32,6 +32,7 @@ protected:
 	bool _ContentRelated;
 	bool _Responded;
 	FString LastErrorMessage;
+	int32 LastErrorCode;
 
 private:
 	bool Sent;
@@ -45,6 +46,9 @@ public:
 	FString GetLastErrorMessage() {return LastErrorMessage; }
 
 	uint32 GetConstructorID() { return _ConstructorID; }
+
+	int32 GetLastErrorCode() { return LastErrorCode; }
+	void SetLastErrorCode(int32 NewCode) { LastErrorCode = NewCode; }
 
 	bool IsContentRelated(){ return _ContentRelated; }
 	void SetContentRelated(bool Value) { _ContentRelated = Value; }

@@ -9,9 +9,9 @@
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
 #include "crypto/Crypto.h"
-#include "../../TL/AllObjects.h"
-#include <zlib.h>
 
+#include <zlib.h>
+#include "../TL/AllObjects.h"
 #include "TelegramClient.h"
 #include "MTError.h"
 /*10/18/2017*/
@@ -35,7 +35,7 @@ int32 MTProtoSender::Send(TLBaseObject &Message)
 TArray<uint8 > MTProtoSender::Receive(TLBaseObject &Message)
 {
 	if (!Transport.IsValid()) return TArray<uint8>();
-	ErrorHandler = MakeShareable(new Exception(this, &Message));
+	ErrorHandler = MakeShareable(new MTError(this, &Message));
 	TArray<uint8> Received;
 	MTSession->SetLastSendMessageID(Message.GetRequestMessageID());
 	UE_LOG(LogTemp, Warning, TEXT("Start receive loop"));
@@ -177,7 +177,7 @@ bool MTProtoSender::ProcessMessage(TArray<uint8 > Message, TLBaseObject &Request
 		return true;
 	}
 
-	if (TLObjects(Response))
+	if (AllObjects::TLObjects(Response))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("tlobject in response"));
 		MessageReader.SetOffset(0);
@@ -345,7 +345,7 @@ bool MTProtoSender::HandleBadMessageNotify(TArray<uint8> Message, TLBaseObject &
 	return true;
 }
 
-bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request)
+bool MTProtoSender::HandleRPCResult(TArray<uint8> Message, TLBaseObject &Request) 
 {
 
 	BinaryReader Reader(Message.GetData(), Message.Num());

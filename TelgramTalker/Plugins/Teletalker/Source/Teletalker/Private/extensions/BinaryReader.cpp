@@ -145,7 +145,7 @@ TArray<unsigned char> BinaryReader::TGReadBytes()
 TLBaseObject* BinaryReader::TGReadObject()
 {
 	uint32 ConstructorID = ReadInt();
-	TLBaseObject * Result = TLObjects(ConstructorID);
+	TLBaseObject * Result = AllObjects::TLObjects(ConstructorID);
 	if (Result == nullptr) 
 		return nullptr;
 	else

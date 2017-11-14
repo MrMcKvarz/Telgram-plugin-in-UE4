@@ -8,6 +8,8 @@ TLBaseObject::TLBaseObject()
 	ConfirmReceived = false;
 	 _ContentRelated = false;
 	_Responded = false;
+	LastErrorCode = 0;
+	LastErrorMessage = "";
 }
 
 void TLBaseObject::OnSendSuccess()

@@ -1,9 +1,16 @@
 #include "Session.h"
-#include <windows.h>
+#ifdef _WIN32
+	#include <windows.h>
+#endif
+
 #include "Engine.h"
 #include "crypto/Crypto.h"
 #include "extensions/BinaryWriter.h"
 #include "extensions/BinaryReader.h"
+
+#ifdef DeleteFile
+#undef DeleteFile
+#endif
 
 FString GetOSName()
 {
@@ -122,7 +129,7 @@ bool Session::Delete()
 {
 	FString AbsoluteFilePath = SessionFilePath + UserName + ".session";
 
-	if (!FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*AbsoluteFilePath))
+	/*if (!*/FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*AbsoluteFilePath); // )
 	{
 		UE_LOG(LogTemp, Display, TEXT("Could Not Find File"));
 		return false;

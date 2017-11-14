@@ -2,40 +2,10 @@
 #include "Engine.h"
 #include "../../TL/TLObjectBase.h"
 
-enum class ErrorSeeOther303
-{
-	FileMigrate,
-	PhoneMigrate,
-	NetworkMigrate,
-	UserMigrate
-};
-
-enum class BadRequest400 
-{
-	
-};
-
-enum class Unauthorized401
-{
-	AuthKeyUnregistered,
-	AuthKeyInvalid,
-	UserDeactivated,
-	SessionRevoked,
-	SessionExpired,
-	ActiveUsersRequired,
-	AuthKeyPermEmpty
-};
-
-enum class NetworkingError
-{
-	NotFound404,
-	FloodWait420,
-	Internal500
-};
 
 class MTProtoSender;
 
-class TELETALKER_API Exception 
+class TELETALKER_API MTError 
 {
 	FString Error;
 	int32 ErrorCode;
@@ -45,7 +15,7 @@ class TELETALKER_API Exception
 	bool HandeMigrate(FString ErrorMessage);
 	bool NotifyRequest();
 public:
-	Exception(MTProtoSender * NewSender, TLBaseObject * Request);
+	MTError(MTProtoSender * NewSender, TLBaseObject * Request);
 
 	bool HandleException(FString NewError, int32 NewErrorCode);
 	bool Reconnect(int32 DC);

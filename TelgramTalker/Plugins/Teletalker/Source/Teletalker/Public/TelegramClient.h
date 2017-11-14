@@ -1,16 +1,19 @@
 #pragma once 
 #include "Engine.h"
+#include "UserError.h"
+#include "../TL/Types/COMMON/Public/User.h"
+#include "../TL/Types/COMMON/Public/Chat.h"
 
 class Session;
 class TLBaseObject;
 class TCPTransport;
 class MTProtoSender;
 
-namespace COMMON
-{
-	class User;
-	class Chat;
-};
+// namespace COMMON
+// {
+// 	class User;
+// 	class Chat;
+// };
 
 
 class TELETALKER_API TelegramClient
@@ -31,16 +34,16 @@ public:
 	bool bUserAuthorized; // presentation only
 	TelegramClient(FString SessionName, int32 API_id, FString API_hash);
 	~TelegramClient();
-	bool Connect();
-	bool SendCode(FString PhoneNumber);
+	UserError Connect();
+	UserError SendCode(FString PhoneNumber);
 	bool Invoke(TLBaseObject &Request);
 	bool Reconnect();
-	TArray<FString> GetDialogSlice(int32 SliceNumber);
-	bool SingIn(FString Code);
+	UserError GetDialogSlice(int32 SliceNumber, TArray<FString> &OutTitles);
+	UserError SingIn(FString Code);
 	
-	bool SendMessage(FString UserSendTo, FString Message);
-	bool IsUserAuthorized();
-	bool LogOut();
+	UserError SendMessage(FString UserSendTo, FString Message);
+	UserError IsUserAuthorized();
+	UserError LogOut();
 
 	/*We stay on the same DC but creating new session*/
 	bool CreateNewSession();

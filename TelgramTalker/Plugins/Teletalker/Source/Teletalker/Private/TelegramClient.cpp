@@ -6,13 +6,9 @@
 #include "Crypto.h"
 #include "MTProtoSender.h"
 #include <typeinfo> 
-/*prob should not be here*/
-#include <exception>
-#include <system_error>
-#include <chrono>
-#include <thread>
+
 /*TL objects*/
-#include "../TL/AllObjects.h"
+#include "../../TL/AllObjects.h"
 #include "TL/TLObjectBase.h"
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
@@ -36,7 +32,7 @@ TelegramClient::~TelegramClient()
 
 }
 
-bool TelegramClient::Connect()
+UserError TelegramClient::Connect()
 {
 
 	/*Connect here and close only when program is done*/
@@ -60,17 +56,19 @@ bool TelegramClient::Connect()
 
 	COMMON::InitConnection * InitRequest = new COMMON::InitConnection(API_ID, ClientSession->GetDeviceModel(), ClientSession->GetSystemVersion(), ClientSession->GetAppVersion(), ClientSession->GetSystemLangCode(),
 		ClientSession->GetLangPack(), ClientSession->GetLangCode(), ConfigRequest);
-	COMMON::InvokeWithLayer * InvokeWithLayerRequest = new COMMON::InvokeWithLayer(CurrentLayer(), InitRequest);
+	COMMON::InvokeWithLayer * InvokeWithLayerRequest = new COMMON::InvokeWithLayer(AllObjects::CurrentLayer(), InitRequest);
 	Invoke(*InvokeWithLayerRequest);
 
 	COMMON::Config* ConfigResult = reinterpret_cast<COMMON::Config*>(InvokeWithLayerRequest->GetResult());
 
 	for (auto DCOption : ConfigResult->GetDcOptions())
-		ClientSession->DCOptions.Add(*DCOption);
+		ClientSession->DCOptions.Add(DCOption);
 
 	UE_LOG(LogTemp, Warning, TEXT("Telegram Client connect"));
+	FString ErrorMessage = InvokeWithLayerRequest->GetLastErrorMessage();
+	int32 ErrorCode = InvokeWithLayerRequest->GetLastErrorCode();
 	delete InvokeWithLayerRequest;
-	return true;
+	return UserError(ErrorMessage, ErrorCode);
 }
 
 void TelegramClient::GenerateNewAuthKey()
@@ -83,16 +81,19 @@ void TelegramClient::GenerateNewAuthKey()
 	return;
 }
 
-bool TelegramClient::SendCode(FString NewPhoneNumber)
+UserError TelegramClient::SendCode(FString PhoneNumber)
 {
-	this->PhoneNumber = NewPhoneNumber;
-	if(!IsUserAuthorized())
+	this->PhoneNumber = PhoneNumber;
+	UserError AuthorizeError = IsUserAuthorized();
+	if(AuthorizeError.GetError() == EMTProtoErrors::AuthKeyUnregistered)
 	{
 		AUTH::SendCode SendCodeRequest(true, PhoneNumber, true, API_ID, API_Hash);
 		Invoke(SendCodeRequest);
-		PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+		if(SendCodeRequest.GetResult())
+			PhoneHashCode = SendCodeRequest.GetResult()->GetPhoneCodeHash();
+		return UserError(SendCodeRequest.GetLastErrorMessage(), SendCodeRequest.GetLastErrorCode());
 	}
-	return true;
+	return AuthorizeError;
 }
 
 bool TelegramClient::Invoke(TLBaseObject &Request)
@@ -102,6 +103,10 @@ bool TelegramClient::Invoke(TLBaseObject &Request)
 	int32 InitSent = Sender->Send(Request);
 	UE_LOG(LogTemp, Warning, TEXT("receive begin"));
 	Sender->Receive(Request);
+	if (!Request.GetLastErrorMessage().IsEmpty())
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -112,126 +117,139 @@ bool TelegramClient::Reconnect()
 	return CreateNewSession();
 }
 
-TArray<FString> TelegramClient::GetDialogSlice(int32 SliceNumber)
+UserError TelegramClient::GetDialogSlice(int32 SliceNumber, TArray<FString> &OutTitles)
 {
 	//if (!IsUserAuthorized()) return TArray<FString>();
 	MESSAGES::GetDialogs GetDialogRequest(false, FDateTime::MinValue(), 0, new COMMON::InputPeerEmpty(), 0);
 	Invoke(GetDialogRequest);
-	TArray<FString> DialogsNames;
 	if (GetDialogRequest.GetResult()->GetConstructorID() == 0x71e094f3)
 	{
 		MESSAGES::DialogsSlice * GetDialogResult = reinterpret_cast<MESSAGES::DialogsSlice *> (GetDialogRequest.GetResult());
-		for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
+		for (COMMON::Dialog dialog : GetDialogResult->GetDialogs())
 		{
-			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
+			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog.GetPeer());
 			//Save all users
-			for (COMMON::User * User : GetDialogResult->Getusers())
+			for (COMMON::User User : GetDialogResult->GetUsers())
 			{
-				if (User)
-					Users.Add(*User);
+					Users.Add(User);
 			}
 			//Get all users names
-			for (COMMON::User * user : GetDialogResult->Getusers())
-				if (user->Getid() == Title->GetUserId())
-					DialogsNames.Add(user->GetFirstName());
+			for (COMMON::User user : GetDialogResult->GetUsers())
+				if (user.GetId() == Title->GetUserId())
+					OutTitles.Add(user.GetFirstName());
 			//Save all chats
-			for (COMMON::Chat * Chat : GetDialogResult->Getchats())
+			for (COMMON::Chat Chat : GetDialogResult->GetChats())
 			{
-				if (Chat->GetConstructorID() == -652419756)
-					Chats.Add(*Chat);
+				if (Chat.GetConstructorID() == -652419756)
+					Chats.Add(Chat);
 			}
 			//Get all chats names
-			for (COMMON::Chat * chat : GetDialogResult->Getchats())
-				if (chat->Getid() == Title->GetUserId())
-					DialogsNames.Add(chat->Gettitle());
+			for (COMMON::Chat chat : GetDialogResult->GetChats())
+				if (chat.GetId() == Title->GetUserId())
+					OutTitles.Add(chat.GetTitle());
 		}
 	}
 	else
 	{
 		MESSAGES::Dialogs * GetDialogResult = reinterpret_cast<MESSAGES::Dialogs *> (GetDialogRequest.GetResult());
-		for (COMMON::Dialog * dialog : GetDialogResult->Getdialogs())
+		for (COMMON::Dialog dialog : GetDialogResult->GetDialogs())
 		{
-			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog->Getpeer());
-			for (COMMON::User *  User : GetDialogResult->Getusers())
+			COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog.GetPeer());
+			for (COMMON::Dialog dialog : GetDialogResult->GetDialogs())
 			{
-				if (User)
-					Users.Add(*User);
+				COMMON::PeerUser * Title = reinterpret_cast<COMMON::PeerUser *> (dialog.GetPeer());
+				//Save all users
+				for (COMMON::User User : GetDialogResult->GetUsers())
+				{
+					Users.Add(User);
+				}
+				//Get all users names
+				for (COMMON::User user : GetDialogResult->GetUsers())
+					if (user.GetId() == Title->GetUserId())
+						OutTitles.Add(user.GetFirstName());
+				//Save all chats
+				for (COMMON::Chat Chat : GetDialogResult->GetChats())
+				{
+					if (Chat.GetConstructorID() == -652419756)
+						Chats.Add(Chat);
+				}
+				//Get all chats names
+				for (COMMON::Chat chat : GetDialogResult->GetChats())
+					if (chat.GetId() == Title->GetUserId())
+						OutTitles.Add(chat.GetTitle());
 			}
-			for (COMMON::User * user : GetDialogResult->Getusers())
-				if (user->Getid() == Title->GetUserId())
-					DialogsNames.Add(user->GetFirstName());
-			for (COMMON::Chat * Chat : GetDialogResult->Getchats())
-			{
-				if (Chat->GetConstructorID() == -652419756)
-					Chats.Add(*Chat);
-			}
-			for (COMMON::Chat * chat : GetDialogResult->Getchats())
-				if (chat->Getid() == Title->GetUserId())
-					DialogsNames.Add(chat->Gettitle());
 		}
 	}
-	return DialogsNames;
+	return UserError(GetDialogRequest.GetLastErrorMessage(), GetDialogRequest.GetLastErrorCode());
 }
 
-bool TelegramClient::SingIn(FString Code)
+UserError TelegramClient::SingIn(FString Code)
 {
 	AUTH::SignIn SingInRequest(PhoneNumber, PhoneHashCode, Code);
 	Invoke(SingInRequest);
-	return true;
+	return UserError(SingInRequest.GetLastErrorMessage(), SingInRequest.GetLastErrorCode());
 }
 
-bool TelegramClient::SendMessage(FString UserSendTo, FString Message)
+UserError TelegramClient::SendMessage(FString UserSendTo, FString Message)
 {
-	if (!IsUserAuthorized()) return false;
-	COMMON::User User;
-	for (COMMON::User user : Users)
-		if (user.GetFirstName() == UserSendTo)
-			User = user;
-
-	bool Result = false;
-	if(!Message.IsEmpty())
+	UserError AuthorizeError = IsUserAuthorized();
+	if (AuthorizeError.GetError() == EMTProtoErrors::RequestOK)
 	{
-		MESSAGES::SendMessage SendMessageRequest(
-			true, 
-			false, 
-			false, 
-			false, 
-			new COMMON::InputPeerUser(User.Getid(), User.GetAccessHash()),
-			0, 
-			Message, 
-			Crypto::GetRandomLong(), 
-			nullptr, 
-			TArray<TLBaseObject *>() );
+		COMMON::User User;
+		for (COMMON::User user : Users)
+			if (user.GetFirstName() == UserSendTo)
+				User = user;
 
-		Result = Invoke(SendMessageRequest);
+		bool Result = false;
+		if (!Message.IsEmpty())
+		{
+			MESSAGES::SendMessage SendMessageRequest(
+				true,
+				false,
+				false,
+				false,
+				new COMMON::InputPeerUser(User.GetId(), User.GetAccessHash()),
+				0,
+				Message,
+				Crypto::GetRandomLong(),
+				nullptr,
+				TArray<TLBaseObject>());
+
+			Invoke(SendMessageRequest);
+
+			return UserError(SendMessageRequest.GetLastErrorMessage(), SendMessageRequest.GetLastErrorCode());
+		}
 	}
-	return Result;	
+	return AuthorizeError;
 }
 
-bool TelegramClient::IsUserAuthorized()
+UserError TelegramClient::IsUserAuthorized()
 {
-	if (!Sender->IsConnected()) return false;
-	COMMON::InputUser *  InputUser = new COMMON::InputUser();
-	TArray<COMMON::InputUser*> UserVector;
+	if (!Sender->IsConnected()) return UserError(-1);
+	COMMON::InputUser InputUser;
+	TArray<COMMON::InputUser> UserVector;
 	UserVector.Add(InputUser);
-	USERS::GetUsers * IsAuthorizedRequest = new USERS::GetUsers(UserVector);
+	USERS::GetUsers IsAuthorizedRequest(UserVector);
 	bUserAuthorized = true;
 
-	Invoke(*IsAuthorizedRequest);
+	Invoke(IsAuthorizedRequest);
 
-	if (IsAuthorizedRequest->GetLastErrorMessage() == L"AUTH_KEY_UNREGISTERED")
+	UserError Error(IsAuthorizedRequest.GetLastErrorMessage(), IsAuthorizedRequest.GetLastErrorCode());
+
+	if (Error.GetError() == EMTProtoErrors::AuthKeyUnregistered)
 		bUserAuthorized = false;
 
 	//delete InputUser;
-	delete IsAuthorizedRequest;
-	return bUserAuthorized;
+	return Error;
 }
 
-bool TelegramClient::LogOut()
+UserError TelegramClient::LogOut()
 {
 	AUTH::LogOut LogOutRequest;
 	Invoke(LogOutRequest);
 	ClientSession->Delete();
+	ClientSession->GenerateNewSessionID();
+	Sender->UpdateTransport(ClientSession.Get());
 	return true; // we don't get response for this
 }
 
@@ -241,7 +259,7 @@ bool TelegramClient::CreateNewSession()
 	ClientSession->Save();
 	bool IsDisconnected = Sender->Disconnect();
 	bool IsUpdated = Sender->UpdateTransport(ClientSession.Get());
-	bool IsConected = Connect();
+	bool IsConected = Connect().GetError() == EMTProtoErrors::RequestOK;
 	ClientSession->SetSequence(0);
 	return IsDisconnected && IsUpdated && IsConected;
 }
